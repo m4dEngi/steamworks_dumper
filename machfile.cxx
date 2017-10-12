@@ -206,7 +206,6 @@ void mach_image::parse_image()
 							{
 								delete symb;
 							}
-								
 						}
 					}
 					

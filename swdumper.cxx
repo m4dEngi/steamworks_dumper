@@ -29,10 +29,20 @@ void save_vtable(const char* t_out_path, const char* t_vtname, std::vector<symbo
 	
 	ofs << "class " << t_vtname << std::endl << "{" << std::endl << "public:" << std::endl;
 	
+	int unknowncount = 0;
+	
 	for(auto it=t_vtfuncs.begin(); it!=t_vtfuncs.end(); ++it)
 	{
-		std::string demangled = demangle((*it)->strval+1); 
-		ofs << "    virtual unknown_ret " << demangled.substr(demangled.find("::")+2) << " = 0;" << std::endl;
+		if((*it) != nullptr) 
+		{
+			std::string demangled = demangle((*it)->strval+1); 
+			ofs << "    virtual unknown_ret " << demangled.substr(demangled.find("::")+2) << " = 0;" << std::endl;
+		}
+		else
+		{
+			ofs << "    virtual unknown_ret unknownwnFunction" << unknowncount << "() = 0;" << std::endl;
+			++unknowncount;
+		}
 	}
 	
 	ofs << "};" << std::endl;
