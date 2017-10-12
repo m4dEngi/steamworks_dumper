@@ -197,7 +197,8 @@ void mach_image::parse_image()
 
 					for(int i=0; i<sym->nsyms; ++i)
 					{
-						if(syms[i].n_value != 0 && syms[i].n_un.n_strx != 0 && !(syms[i].n_type & N_GSYM))
+						// ignoring unnamed and stab symbols... those might be useful, but we'll just ignore 'em for now
+						if(syms[i].n_value != 0 && (m_strings+syms[i].n_un.n_strx)[0] != '\0' && !(syms[i].n_type & N_STAB))
 						{
 							symbol* symb = new symbol(&syms[i], m_strings+syms[i].n_un.n_strx );
 							auto inres = m_symbols.insert(std::pair<uint32_t,symbol*>(syms[i].n_value, symb));
