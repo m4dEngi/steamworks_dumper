@@ -13,13 +13,14 @@
 mach_image image;
 size_t binary_size;
 
+
 struct steam_enum_pair
 {
 	int32_t value;
 	int32_t descriptor_offset;
 };
 
-void save_vtable(const char* t_out_path, const char* t_vtname, std::vector<symbol*>& t_vtfuncs)
+void write_vtable(const char* t_out_path, const char* t_vtname, std::vector<symbol*>& t_vtfuncs)
 {
 	size_t path_len = strlen(t_out_path)+strlen(t_vtname)+16;
 	char* file_path_out = new char[path_len];
@@ -40,6 +41,7 @@ void save_vtable(const char* t_out_path, const char* t_vtname, std::vector<symbo
 		}
 		else
 		{
+			// just in case... we shouldn't get here
 			ofs << "    virtual unknown_ret unknownwnFunction" << unknowncount << "() = 0;" << std::endl;
 			++unknowncount;
 		}
@@ -50,7 +52,7 @@ void save_vtable(const char* t_out_path, const char* t_vtname, std::vector<symbo
 	delete [] file_path_out;
 }
 
-void save_enum(const char* t_out_path, const char* t_enum_name, std::map<int32_t,char*> t_enum)
+void write_enum(const char* t_out_path, const char* t_enum_name, std::map<int32_t,char*> t_enum)
 {
 	size_t path_len = strlen(t_out_path)+strlen(t_enum_name)+16;
 	char* file_path_out = new char[path_len];
@@ -73,7 +75,7 @@ void save_enum(const char* t_out_path, const char* t_enum_name, std::map<int32_t
 		}
 		ofs << name_escaped;
 		
-		if((*it).first - prev_value != 1 || it == t_enum.begin())
+		if(((*it).first - prev_value != 1 && it != t_enum.begin()) || (it == t_enum.begin() && (*it).first != 0))
 		{
 			ofs << " = " << (*it).first;
 		}
@@ -106,6 +108,7 @@ void save_steam_vtables(mach_image& t_image, const char* out_path)
 				++vtf_index;
 			}
 			std::string vtname(demangle((*it)->strval+1));
+			// skipping all "weird" templated classes and empty vtables
 			if(vtname.find("::") == std::string::npos && vtname.find("<") == std::string::npos && vtable.size() > 0)
 			{
 				vtname = vtname.substr(11);
@@ -114,7 +117,7 @@ void save_steam_vtables(mach_image& t_image, const char* out_path)
 					vtname = vtname.substr(0, vtname.length()-3);
 				}
 
-				// will just renaming few adapters to match their steamworks names
+				// just renaming few adapters to match their steamworks names
 				size_t capos = vtname.find("CAdapterSteam");
 				if(capos == 0)
 				{
@@ -139,21 +142,18 @@ void save_steam_vtables(mach_image& t_image, const char* out_path)
 					vtname.replace(0, 17,"IClientHTMLSurface");
 				}				
 				
-				//size_t csctrl = vtname.find("CSteamController");
 				if(vtname == "CSteamController")
 				{
 					vtname.replace(0, 16,"IClientController");
 				}				
 				
-				//CSteamController
-				
-				// now just save any vtable which name starts with 'I'
-				// because i'm too lazy 
-				// and at this point all public steam interfaces just named 
+				// At this point public and private client interfaces should be named 
 				// ISteam* or IClient*
+				// So we'll save any vtable which name starts with I
+				// cheap and dirty
 				if(vtname[0] == 'I')
 				{
-					save_vtable(out_path, vtname.c_str(), vtable);
+					write_vtable(out_path, vtname.c_str(), vtable);
 				}
 			}
 		}
@@ -179,7 +179,7 @@ void save_steam_enums(mach_image& t_image, const char* out_path)
 				enum_offset += sizeof(steam_enum_pair);
 				++idx;
 			} while(t_image.is_valid_string_const(sep[idx].descriptor_offset) && t_image.get_symbol_at_offset(enum_offset) == nullptr);
-			save_enum(out_path, demangle((*it)->strval+1).substr(2).c_str(), enum_val);
+			write_enum(out_path, demangle((*it)->strval+1).substr(2).c_str(), enum_val);
 		}
 	}
 }

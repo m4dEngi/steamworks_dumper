@@ -189,12 +189,12 @@ void mach_image::parse_image()
 			case LC_SYMTAB:
 				{
 					// TODO:
-					// change m_symbols to multimap
+					// implement a beter parser
 					//
 					symtab_command* sym = ptr_to_struct<symtab_command>();
 					m_strings = ptr_peek_struct<char>(sym->stroff);
+					
 					nlist* syms = ptr_peek_struct<nlist>(sym->symoff);
-
 					for(int i=0; i<sym->nsyms; ++i)
 					{
 						// ignoring unnamed and stab symbols... those might be useful, but we'll just ignore 'em for now
