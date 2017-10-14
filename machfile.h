@@ -62,12 +62,15 @@ public:
 	void seek(size_t t_offset);
 	void seek(size_t t_offset, std::ios_base::seekdir t_dir);
 	size_t tellg();
+	size_t read(unsigned char* t_buf, size_t t_bytes_to_read);
 	symbol* get_symbol_at_offset(size_t offset);
 	section* get_section_by_name(const char* t_segment_name, const char* t_section_name);
 	bool is_valid_string_const(size_t t_cscaddr);
 	bool is_valid_function_address(size_t t_funcaddr);
 	void find_symbols_by_name(const char* t_name_part, std::vector<symbol*>& t_matches_out);
-
+	symbol* find_symbol_by_name(const char* t_name_part);
+	unsigned char* get_image_bytes();
+	
 private:
 	void reset();
 	void parse_image();

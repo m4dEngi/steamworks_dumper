@@ -76,7 +76,25 @@ void mach_image::seek(size_t t_offset, std::ios_base::seekdir t_dir)
 			break;
 	}
 }
+
+size_t mach_image::read(unsigned char* t_buf, size_t t_bytes_to_read)
+{
+	if(m_image_size - m_offset < t_bytes_to_read)
+	{
+		return 0;
+	}
 	
+	memcpy(t_buf, m_image_bytes + m_offset, t_bytes_to_read);
+	m_offset += t_bytes_to_read;
+	
+	return m_offset;
+}
+
+unsigned char* mach_image::get_image_bytes()
+{
+	return m_image_bytes;
+}
+
 size_t mach_image::tellg()
 {
 	return m_offset;
@@ -106,6 +124,8 @@ section* mach_image::get_section_by_name(const char* t_segment_name, const char*
 	}
 	return nullptr;
 }
+
+
 	
 bool mach_image::is_valid_string_const(size_t t_cscaddr)
 {
@@ -142,6 +162,19 @@ void mach_image::find_symbols_by_name(const char* t_name_part, std::vector<symbo
 			t_matches_out.push_back((*it).second);
 		}
 	}
+}
+
+symbol* mach_image::find_symbol_by_name(const char* t_name_part)
+{
+	for(auto it = m_symbols.begin(); it != m_symbols.end(); ++it)
+	{
+		if(strstr((*it).second->strval, t_name_part) != nullptr)
+		{
+			return (*it).second;
+		}
+	}
+	
+	return nullptr;
 }
 
 void mach_image::reset()

@@ -4,16 +4,23 @@
 #include <map>
 #include <cstring>
 #include <vector>
+#include <list>
 
 #include "stuff.h"
 #include "util.h"
 #include "machfile.h"
-
+#include "include/hde/hde32.h"
 
 mach_image image;
 size_t binary_size;
 
+struct callback_desc
+{
+	size_t size;
+	char* posted_in;
+};
 
+// steam public enums string lookup
 struct steam_enum_pair
 {
 	int32_t value;
@@ -88,6 +95,33 @@ void write_enum(const char* t_out_path, const char* t_enum_name, std::map<int32_
 	ofs << "} " << t_enum_name << ";" << std::endl;
 	
 	delete [] file_path_out;
+}
+
+void write_callbackid_dump(const char* t_out_path, std::map<int32_t, callback_desc> &t_callbacks)
+{
+	std::string file_path_out(t_out_path);
+	std::ofstream ofs(file_path_out + "/callbacks.json", std::ios_base::out);	
+	
+	ofs << "{" << std::endl;
+	
+	for(auto it = t_callbacks.begin(); it != t_callbacks.end(); ++it)
+	{
+		ofs << "    \"" << (*it).first << "\": {" << std::endl;
+		ofs << "        \"size\": " <<  (*it).second.size << "," << std::endl;
+		ofs << "        \"posted_in\": \"" <<  demangle((*it).second.posted_in + 1) << "\"" << std::endl;
+		ofs << "    }";
+		
+		auto it_next = it;
+		++it_next;
+		
+		if(it_next != t_callbacks.end())
+		{
+			ofs << ",";
+		}
+		ofs << std::endl;
+	}
+	
+	ofs << "}" << std::endl;
 }
 
 void save_steam_vtables(mach_image& t_image, const char* out_path)
@@ -206,6 +240,124 @@ int find_image_offset(std::ifstream& t_universal_bin, cpu_type_t t_cputype, size
 	return -1;
 }
 
+
+uint32_t get_argument(unsigned char* t_image_bytes, std::list<size_t> &t_instruction_bt, uint8_t t_arg_num)
+{
+	uint8_t arg_soff = t_arg_num * 4;
+	for(auto it = t_instruction_bt.end(); it != t_instruction_bt.begin(); --it)
+	{
+		hde32s hds_bt;
+		hde32_disasm(t_image_bytes + *it, &hds_bt);
+		if(hds_bt.opcode == 0xc7 && hds_bt.disp8 == arg_soff) // only interested in mov imm32 screw the rest
+		{
+			return hds_bt.imm32;
+		}
+	}
+	
+	return -1;
+}
+
+
+void dump_callback_ids(mach_image& t_image, const char* out_path)
+{
+	symbol* post_callback_to_ui = t_image.find_symbol_by_name("__ZN9CBaseUser16PostCallbackToUIEiPhi");
+	if(post_callback_to_ui == nullptr)
+	{
+		return;
+	}
+	
+	symbol* post_callback_to_all = t_image.find_symbol_by_name("__ZN9CBaseUser17PostCallbackToAllEiPhi");
+	if(post_callback_to_all == nullptr)
+	{
+		return;
+	}
+	
+	symbol* post_callback_to_app = t_image.find_symbol_by_name("__ZN9CBaseUser17PostCallbackToAppEjiPhi");
+	if(post_callback_to_app == nullptr)
+	{
+		return;
+	}
+
+	symbol* post_callback_to_pipe = t_image.find_symbol_by_name("__ZN9CBaseUser18PostCallbackToPipeEiiPhi");
+	if(post_callback_to_pipe == nullptr)
+	{
+		return;
+	}	
+
+	symbol* post_api_result = t_image.find_symbol_by_name("__ZN12CSteamEngine13PostAPIResultEP9CBaseUseryiPvi");
+	if(post_callback_to_pipe == nullptr)
+	{
+		return;
+	}	
+	
+	section* text_section = t_image.get_section_by_name("__TEXT", "__text");
+	t_image.seek(text_section->offset , std::ios_base::beg);
+	size_t current_pos = text_section->offset;
+	size_t section_end = text_section->offset + text_section->size;
+	
+	unsigned char* image_bytes = t_image.get_image_bytes();
+	
+	hde32s hds;
+	size_t func_start_offset = 0;
+	std::list<size_t> instruction_bt;
+	std::map<int32_t, callback_desc> callbacks;
+	while(current_pos < section_end)
+	{
+		hde32_disasm(image_bytes + current_pos, &hds);
+
+		if(hds.opcode == 0x55) // push ebp
+		{
+			func_start_offset = current_pos;
+		}
+		
+		if(hds.opcode == 0xe8) // call rel offset
+		{
+			size_t func_absolute_offset = (int)hds.rel32 + current_pos + 5;
+			uint32_t cbid = -1;
+			uint32_t cbsize = 0;
+		
+			if( func_absolute_offset == post_callback_to_ui->nvalue->n_value  ||
+				func_absolute_offset == post_callback_to_all->nvalue->n_value 
+			)
+			{
+				cbid = get_argument(image_bytes, instruction_bt, 1);
+				cbsize = get_argument(image_bytes, instruction_bt, 3);
+			}
+			else if( func_absolute_offset == post_callback_to_app->nvalue->n_value  ||
+					 func_absolute_offset == post_callback_to_pipe->nvalue->n_value 
+			)
+			{
+				cbsize = get_argument(image_bytes, instruction_bt, 4);
+				cbid = get_argument(image_bytes, instruction_bt, 2);
+			}
+			else if( func_absolute_offset == post_api_result->nvalue->n_value )
+			{
+				cbsize = get_argument(image_bytes, instruction_bt, 6);
+				cbid = get_argument(image_bytes, instruction_bt, 7);
+			}
+			else { }
+			
+			if(cbid != -1) 
+			{
+				callbacks.insert(std::pair<int32_t, callback_desc>((int32_t)cbid, {cbsize, t_image.get_symbol_at_offset(func_start_offset)->strval}));
+			}
+		}
+		
+		instruction_bt.push_back(current_pos);
+		
+		if(instruction_bt.size() > 10)
+		{
+			instruction_bt.pop_front();
+		}		
+		
+		current_pos += hds.len;
+	}
+	
+	std::cout << callbacks.size() << " callbacks found" << std::endl;
+	
+	write_callbackid_dump(out_path, callbacks);
+}
+
 int main(int argc, char* argv[])
 {
 	if(argc < 2)
@@ -282,6 +434,7 @@ int main(int argc, char* argv[])
 
 	save_steam_enums(image, out_path);
 	save_steam_vtables(image, out_path);
+	dump_callback_ids(image, out_path);
 	
 	return 0;
 }
