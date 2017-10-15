@@ -20,12 +20,28 @@ struct callback_desc
 	char* posted_in;
 };
 
+#pragma pack(push, 1)
 // steam public enums string lookup
 struct steam_enum_pair
 {
 	int32_t value;
 	int32_t descriptor_offset;
 };
+
+// msginfo 
+struct steam_emsg 
+{
+	int32_t emsg;
+	int32_t descriptor_offset;
+	uint32_t flags;
+	int32_t server_type;
+	
+	uint64_t unk1;
+	uint64_t unk2;
+	uint64_t unk3;
+	uint32_t unk4;
+};
+#pragma pack(pop)
 
 void write_vtable(const char* t_out_path, const char* t_vtname, std::vector<symbol*>& t_vtfuncs)
 {
@@ -102,11 +118,12 @@ void write_callbackid_dump(const char* t_out_path, std::map<int32_t, callback_de
 	std::string file_path_out(t_out_path);
 	std::ofstream ofs(file_path_out + "/callbacks.json", std::ios_base::out);	
 	
-	ofs << "{" << std::endl;
+	ofs << "[" << std::endl;
 	
 	for(auto it = t_callbacks.begin(); it != t_callbacks.end(); ++it)
 	{
-		ofs << "    \"" << (*it).first << "\": {" << std::endl;
+		ofs << "    {" << std::endl;
+		ofs << "        \"id\": " << (*it).first << "," << std::endl;
 		ofs << "        \"size\": " <<  (*it).second.size << "," << std::endl;
 		ofs << "        \"posted_in\": \"" <<  demangle((*it).second.posted_in + 1) << "\"" << std::endl;
 		ofs << "    }";
@@ -121,10 +138,40 @@ void write_callbackid_dump(const char* t_out_path, std::map<int32_t, callback_de
 		ofs << std::endl;
 	}
 	
-	ofs << "}" << std::endl;
+	ofs << "]" << std::endl;
 }
 
-void save_steam_vtables(mach_image& t_image, const char* out_path)
+void write_emsgs_dump(const char* t_out_path, std::map<int32_t, steam_emsg*> &t_emsg_list, mach_image& t_image)
+{
+	std::string file_path_out(t_out_path);
+	std::ofstream ofs(file_path_out + "/emsg_list.json", std::ios_base::out);	
+	
+	ofs << "[" << std::endl;
+	
+	for(auto it = t_emsg_list.begin(); it != t_emsg_list.end(); ++it)
+	{
+		ofs << "    {" << std::endl;
+		ofs << "        \"emsg\": " << (*it).first << "," << std::endl;
+		ofs << "        \"name\": \"" <<  t_image.ptr_peek_struct<char>((*it).second->descriptor_offset) << "\"," << std::endl;
+		ofs << "        \"flags\": " <<  (*it).second->flags << "," << std::endl;
+		ofs << "        \"server_type\": " << (*it).second->server_type << std::endl;
+		ofs << "    }";
+				
+		auto it_next = it;
+		++it_next;
+		
+		if(it_next != t_emsg_list.end())
+		{
+			ofs << ",";
+		}
+		ofs << std::endl;
+	}
+	
+	
+	ofs << "]" << std::endl;
+}
+
+void dump_vtables(mach_image& t_image, const char* out_path)
 {
 	std::vector<symbol*> vtables;
 	t_image.find_symbols_by_name("__ZTV", vtables);
@@ -194,7 +241,7 @@ void save_steam_vtables(mach_image& t_image, const char* out_path)
 	}	
 }
 
-void save_steam_enums(mach_image& t_image, const char* out_path)
+void dump_enums(mach_image& t_image, const char* out_path)
 {
 	std::vector<symbol*> enums;
 	t_image.find_symbols_by_name("__ZL", enums);
@@ -358,6 +405,29 @@ void dump_callback_ids(mach_image& t_image, const char* out_path)
 	write_callbackid_dump(out_path, callbacks);
 }
 
+void dump_emsgs(mach_image& t_image, const char* out_path)
+{
+	symbol* emsglist = t_image.find_symbol_by_name("__ZL9g_MsgInf");
+	if(emsglist == nullptr)
+	{
+		return;
+	}
+	
+	steam_emsg* msgs_info = t_image.ptr_peek_struct<steam_emsg>(emsglist->nvalue->n_value);
+	
+	int32_t idx = 0;
+	size_t emsg_offset = emsglist->nvalue->n_value;
+	std::map<int32_t, steam_emsg*> msglist;
+	do
+	{
+		msglist.insert(std::pair<int32_t, steam_emsg*>(msgs_info[idx].emsg, &msgs_info[idx]));
+		emsg_offset += sizeof(steam_emsg);
+		++idx;
+	} while(msgs_info[idx].emsg != 0 && t_image.get_symbol_at_offset(emsg_offset) == nullptr);
+
+	write_emsgs_dump(out_path, msglist, t_image);
+}
+
 int main(int argc, char* argv[])
 {
 	if(argc < 2)
@@ -432,9 +502,10 @@ int main(int argc, char* argv[])
 	}
 	
 
-	save_steam_enums(image, out_path);
-	save_steam_vtables(image, out_path);
+	dump_enums(image, out_path);
+	dump_vtables(image, out_path);
 	dump_callback_ids(image, out_path);
+	dump_emsgs(image, out_path);
 	
 	return 0;
 }
