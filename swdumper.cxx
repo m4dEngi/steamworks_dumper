@@ -240,10 +240,10 @@ void dump_vtables(mach_image& t_image, const char* out_path)
 
 void dump_enums(mach_image& t_image, const char* out_path)
 {
-	std::vector<symbol*> enums;
-	t_image.find_symbols_by_name("__ZL", enums);
-	std::cout << enums.size() << " enums found" << std::endl;
-	for(auto it=enums.begin(); it!=enums.end(); ++it)
+	std::vector<symbol*> consts;
+	t_image.find_symbols_by_name("__ZL", consts);
+	std::cout << consts.size() << " consts found" << std::endl;
+	for(auto it=consts.begin(); it!=consts.end(); ++it)
 	{
 		if(strstr((*it)->strval, "s_E"))
 		{
@@ -422,6 +422,8 @@ void dump_emsgs(mach_image& t_image, const char* out_path)
 		++idx;
 	} while(msgs_info[idx].emsg != 0 && t_image.get_symbol_at_offset(emsg_offset) == nullptr);
 
+	std::cout << msglist.size() << " emsgs found" << std::endl;
+	
 	write_emsgs_dump(out_path, msglist, t_image);
 }
 
