@@ -72,7 +72,7 @@ void write_vtable(const char* t_out_path, const char* t_vtname, std::vector<symb
 	delete [] file_path_out;
 }
 
-void write_enum(const char* t_out_path, const char* t_enum_name, std::map<int32_t,char*> t_enum)
+void write_enum(const char* t_out_path, const char* t_enum_name, std::map<int32_t,char*>& t_enum)
 {
 	size_t path_len = strlen(t_out_path)+strlen(t_enum_name)+16;
 	char* file_path_out = new char[path_len];
@@ -110,7 +110,7 @@ void write_enum(const char* t_out_path, const char* t_enum_name, std::map<int32_
 	delete [] file_path_out;
 }
 
-void write_callbackid_dump(const char* t_out_path, std::map<int32_t, callback_desc> &t_callbacks)
+void write_callbackid_dump(const char* t_out_path, std::map<int32_t, callback_desc>& t_callbacks)
 {
 	std::string file_path_out(t_out_path);
 	std::ofstream ofs(file_path_out + "/callbacks.json", std::ios_base::out);	
@@ -138,7 +138,7 @@ void write_callbackid_dump(const char* t_out_path, std::map<int32_t, callback_de
 	ofs << "]" << std::endl;
 }
 
-void write_emsgs_dump(const char* t_out_path, std::map<int32_t, steam_emsg*> &t_emsg_list, mach_image& t_image)
+void write_emsgs_dump(const char* t_out_path, std::map<int32_t, steam_emsg*>& t_emsg_list, mach_image& t_image)
 {
 	std::string file_path_out(t_out_path);
 	std::ofstream ofs(file_path_out + "/emsg_list.json", std::ios_base::out);	
@@ -166,6 +166,47 @@ void write_emsgs_dump(const char* t_out_path, std::map<int32_t, steam_emsg*> &t_
 	
 	
 	ofs << "]" << std::endl;
+}
+
+void write_cms_dump(const char* t_out_path, std::vector<int32_t>& t_public_cms, std::vector<int32_t>& t_public_ws_cms, mach_image& t_image)
+{
+	std::string file_path_out(t_out_path);
+	std::ofstream ofs(file_path_out + "/default_public_cms.json", std::ios_base::out);	
+	
+	ofs << "{" << std::endl;
+	ofs << "	\"default\" : [" << std::endl;
+	for(auto it = t_public_cms.begin(); it != t_public_cms.end(); ++it)
+	{
+		ofs << "        \""<< t_image.ptr_peek_struct<char>(*it) << "\"";
+
+		auto it_next = it;
+		++it_next;
+		
+		if(it_next != t_public_cms.end())
+		{
+			ofs << ",";
+		}
+		ofs << std::endl;
+	}
+	ofs << "	]," << std::endl;
+	
+	ofs << "	\"default_ws\" : [" << std::endl;
+	for(auto it = t_public_ws_cms.begin(); it != t_public_ws_cms.end(); ++it)
+	{
+		ofs << "        \""<< t_image.ptr_peek_struct<char>(*it) << "\"";
+
+		auto it_next = it;
+		++it_next;
+		
+		if(it_next != t_public_ws_cms.end())
+		{
+			ofs << ",";
+		}
+		ofs << std::endl;
+	}
+	ofs << "	]" << std::endl;		
+	
+	ofs << "}" << std::endl;
 }
 
 void dump_vtables(mach_image& t_image, const char* out_path)
@@ -427,6 +468,44 @@ void dump_emsgs(mach_image& t_image, const char* out_path)
 	write_emsgs_dump(out_path, msglist, t_image);
 }
 
+template <typename T>
+void get_conststr_offsets(mach_image& t_image, size_t t_start_offset, std::vector<T>& t_out)
+{
+	T* offset_array = t_image.ptr_peek_struct<T>(t_start_offset);
+	int32_t idx = 0;
+	size_t image_offset = t_start_offset;
+	
+	do
+	{
+		t_out.push_back(offset_array[idx]);
+		image_offset += sizeof(T);
+		++idx;
+	} while(offset_array[idx] != 0 && t_image.get_symbol_at_offset(image_offset) == nullptr);
+}
+
+void dump_public_cm(mach_image& t_image, const char* out_path)
+{
+	symbol* s_public_ws_cms = t_image.find_symbol_by_name("__ZL32g_rgpchDefaultPublicWebSocketCMs");
+	if(s_public_ws_cms == nullptr)
+	{
+		return;
+	}
+	
+	symbol* s_public_cms = t_image.find_symbol_by_name("__ZL23g_rgpchDefaultPublicCMs");
+	if(s_public_cms == nullptr)
+	{
+		return;
+	}
+	
+	std::vector<int32_t> public_ws_cms;
+	std::vector<int32_t> public_cms;
+	
+	get_conststr_offsets<int32_t>(t_image, s_public_ws_cms->nvalue->n_value, public_ws_cms);
+	get_conststr_offsets<int32_t>(t_image, s_public_cms->nvalue->n_value, public_cms);
+	
+	write_cms_dump(out_path, public_cms, public_ws_cms, t_image);
+}
+
 int main(int argc, char* argv[])
 {
 	if(argc < 2)
@@ -505,6 +584,7 @@ int main(int argc, char* argv[])
 	dump_vtables(image, out_path);
 	dump_callback_ids(image, out_path);
 	dump_emsgs(image, out_path);
+	dump_public_cm(image, out_path);
 	
 	return 0;
 }
