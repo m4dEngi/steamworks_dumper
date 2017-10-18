@@ -174,7 +174,7 @@ void write_cms_dump(const char* t_out_path, std::vector<int32_t>& t_public_cms, 
 	std::ofstream ofs(file_path_out + "/default_public_cms.json", std::ios_base::out);	
 	
 	ofs << "{" << std::endl;
-	ofs << "	\"default\" : [" << std::endl;
+	ofs << "    \"default\" : [" << std::endl;
 	for(auto it = t_public_cms.begin(); it != t_public_cms.end(); ++it)
 	{
 		ofs << "        \""<< t_image.ptr_peek_struct<char>(*it) << "\"";
@@ -188,9 +188,9 @@ void write_cms_dump(const char* t_out_path, std::vector<int32_t>& t_public_cms, 
 		}
 		ofs << std::endl;
 	}
-	ofs << "	]," << std::endl;
+	ofs << "    ]," << std::endl;
 	
-	ofs << "	\"default_ws\" : [" << std::endl;
+	ofs << "    \"default_ws\" : [" << std::endl;
 	for(auto it = t_public_ws_cms.begin(); it != t_public_ws_cms.end(); ++it)
 	{
 		ofs << "        \""<< t_image.ptr_peek_struct<char>(*it) << "\"";
@@ -204,7 +204,7 @@ void write_cms_dump(const char* t_out_path, std::vector<int32_t>& t_public_cms, 
 		}
 		ofs << std::endl;
 	}
-	ofs << "	]" << std::endl;		
+	ofs << "    ]" << std::endl;		
 	
 	ofs << "}" << std::endl;
 }
