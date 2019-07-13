@@ -36,7 +36,7 @@ struct steam_emsg
 	uint32_t flags;
 	int32_t server_type;
 	
-	char unk_pad[28];
+    char unk_pad[4];
 };
 #pragma pack(pop)
 
@@ -348,30 +348,35 @@ void dump_callback_ids(mach_image& t_image, const char* out_path)
 	symbol* post_callback_to_ui = t_image.find_symbol_by_name("__ZN9CBaseUser16PostCallbackToUIEiPhi");
 	if(post_callback_to_ui == nullptr)
 	{
+        printf("Function not found : CBaseUser::PostCallbackToUI(int,uchar *,int)\nAborted.\n");
 		return;
 	}
 	
 	symbol* post_callback_to_all = t_image.find_symbol_by_name("__ZN9CBaseUser17PostCallbackToAllEiPhi");
 	if(post_callback_to_all == nullptr)
 	{
+        printf("Function not found : CBaseUser::PostCallbackToAll(int,uchar *,int)\nAborted.\n");
 		return;
 	}
 	
 	symbol* post_callback_to_app = t_image.find_symbol_by_name("__ZN9CBaseUser17PostCallbackToAppEjiPhi");
 	if(post_callback_to_app == nullptr)
 	{
+        printf("Function not found : CBaseUser::PostCallbackToApp(uint,int,uchar *,int)\nAborted.\n");
 		return;
 	}
 
 	symbol* post_callback_to_pipe = t_image.find_symbol_by_name("__ZN9CBaseUser18PostCallbackToPipeEiiPhi");
 	if(post_callback_to_pipe == nullptr)
 	{
+        printf("Function not found : CBaseUser::PostCallbackToPipe(int,int,uchar *,int)\nAborted.\n");
 		return;
 	}	
 
-	symbol* post_api_result = t_image.find_symbol_by_name("__ZN12CSteamEngine13PostAPIResultEP9CBaseUseryiPvi");
-	if(post_callback_to_pipe == nullptr)
+    symbol* post_api_result = t_image.find_symbol_by_name("__ZN12CSteamEngine13PostAPIResultEP9CBaseUseryiPKvii");
+    if(post_api_result == nullptr)
 	{
+        printf("Function not found : CSteamEngine::PostAPIResult(CBaseUser *,ulong long,int,void const*,int,int)\nAborted.\n");
 		return;
 	}	
 	
@@ -417,8 +422,8 @@ void dump_callback_ids(mach_image& t_image, const char* out_path)
 			}
 			else if( func_absolute_offset == post_api_result->nvalue->n_value )
 			{
-				cbsize = get_argument(image_bytes, instruction_bt, 6);
-				cbid = get_argument(image_bytes, instruction_bt, 7);
+                cbsize = get_argument(image_bytes, instruction_bt, 6);
+                cbid = get_argument(image_bytes, instruction_bt, 7);
 			}
 			else { }
 			
