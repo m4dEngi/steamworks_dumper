@@ -32,11 +32,9 @@ struct steam_enum_pair
 struct steam_emsg 
 {
 	int32_t emsg;
-	int32_t descriptor_offset;
 	uint32_t flags;
 	int32_t server_type;
-	
-    char unk_pad[4];
+    char unk_pad[8];
 };
 #pragma pack(pop)
 
@@ -149,7 +147,6 @@ void write_emsgs_dump(const char* t_out_path, std::map<int32_t, steam_emsg*>& t_
 	{
 		ofs << "    {" << std::endl;
 		ofs << "        \"emsg\": " << (*it).first << "," << std::endl;
-		ofs << "        \"name\": \"" <<  t_image.ptr_peek_struct<char>((*it).second->descriptor_offset) << "\"," << std::endl;
 		ofs << "        \"flags\": " <<  (*it).second->flags << "," << std::endl;
 		ofs << "        \"server_type\": " << (*it).second->server_type << std::endl;
 		ofs << "    }";
