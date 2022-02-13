@@ -1,10 +1,27 @@
-cmake_minimum_required(VERSION 2.8)
-project(swdumper)
-include(CheckIncludeFileCXX)
-check_include_file_cxx(cxxabi.h HAVE_CXXABI)
+cmake_minimum_required(VERSION 3.5)
 
-if(NOT HAVE_CXXABI)
-  message(FATAL_ERROR "cxxabi.h not found")
-endif(NOT HAVE_CXXABI)
+include(FindPkgConfig)
+pkg_check_modules (CAPSTONE REQUIRED capstone)
 
-add_executable(${PROJECT_NAME} "swdumper.cxx" "stuff.h" "util.h" "util.cxx" "machfile.h" "machfile.cxx" "include/hde/hde32.c")
+project(steamworks_dumper LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+add_executable(steamworks_dumper
+    main.cpp
+    moduleimage.h
+    moduleimage.cpp
+    clientmodule.h
+    clientmodule.cpp
+    dumperbase.h
+    dumperbase.cpp
+    enumdumper.h
+    enumdumper.cpp
+    clientinterfacedumper.h
+    clientinterfacedumper.cpp
+    callbackdumper.h
+    callbackdumper.cpp
+)
+
+target_link_libraries(steamworks_dumper ${CAPSTONE_LIBRARIES})
