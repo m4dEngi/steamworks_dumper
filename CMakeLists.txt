@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.5)
 
+project(steamworks_dumper LANGUAGES CXX)
+
 include(FindPkgConfig)
 pkg_check_modules (CAPSTONE REQUIRED capstone)
-
-project(steamworks_dumper LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
