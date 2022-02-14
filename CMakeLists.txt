@@ -22,6 +22,8 @@ add_executable(steamworks_dumper
     clientinterfacedumper.cpp
     callbackdumper.h
     callbackdumper.cpp
+    emsgdumper.h
+    emsgdumper.cpp
 )
 
 target_link_libraries(steamworks_dumper ${CAPSTONE_LIBRARIES})

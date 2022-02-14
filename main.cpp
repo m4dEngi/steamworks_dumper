@@ -4,8 +4,9 @@
 #include "enumdumper.h"
 #include "clientinterfacedumper.h"
 #include "callbackdumper.h"
+#include "emsgdumper.h"
 
-void DumpEnums(ClientModule* t_module, std::string t_outPath)
+void DumpEnums(ClientModule* t_module, const std::string& t_outPath)
 {
     EnumDumper dumper(t_module);
     size_t enumsFound = dumper.FindEnums();
@@ -36,7 +37,7 @@ void DumpEnums(ClientModule* t_module, std::string t_outPath)
     }
 }
 
-void DumpInterfaces(ClientModule* t_module, std::string t_outPath)
+void DumpInterfaces(ClientModule* t_module, const std::string& t_outPath)
 {
     ClientInterfaceDumper iDumper(t_module);
     size_t numIfaces = iDumper.FindClientInterfaces();
@@ -77,7 +78,7 @@ void DumpInterfaces(ClientModule* t_module, std::string t_outPath)
     }
 }
 
-void DumpCallbacks(ClientModule* t_module, std::string t_outPath)
+void DumpCallbacks(ClientModule* t_module, const std::string& t_outPath)
 {
     CallbackDumper cbDumper(t_module);
     size_t callbacksFound = cbDumper.FindCallbacks();
@@ -121,6 +122,42 @@ void DumpCallbacks(ClientModule* t_module, std::string t_outPath)
     }
 }
 
+void DumpLegacyEMsgList(ClientModule* t_module, const std::string& t_outPath)
+{
+    EMsgDumper eDumper(t_module);
+    size_t emsgsFound = eDumper.FindEMsgInfos();
+    if(emsgsFound)
+    {
+        std::cout << "Found " << emsgsFound << " legacy EMsgs" << std::endl;
+
+        std::string outPath = t_outPath + "/emsg_list.json";
+        std::ofstream out(outPath, std::ios_base::out);
+
+        out << "[" << std::endl;
+
+        auto emsgList = eDumper.GetEMsgList();
+        for(auto it = emsgList->cbegin(); it != emsgList->cend(); ++it)
+        {
+            out << "    {" << std::endl;
+            out << "        \"emsg\": " << it->first << "," << std::endl;
+            out << "        \"flags\": " <<  it->second.m_flags << "," << std::endl;
+            out << "        \"server_type\": " << it->second.m_serverType << "," << std::endl;
+            out << "        \"name\": \"" << it->second.m_decriptor << "\"" << std::endl;
+            out << "    }";
+
+            if(std::next(it) != emsgList->cend())
+            {
+                out << ",";
+            }
+
+            out << std::endl;
+        }
+
+        out << "]" << std::endl;
+
+    }
+}
+
 int main(int argc, char* argv[])
 {
     if(argc < 2)
@@ -152,6 +189,7 @@ int main(int argc, char* argv[])
     DumpCallbacks(&module, outPath);
     DumpInterfaces(&module, outPath);
     DumpEnums(&module, outPath);
+    DumpLegacyEMsgList(&module, outPath);
 
     return 0;
 }

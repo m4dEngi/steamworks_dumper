@@ -146,19 +146,12 @@ void ClientInterfaceDumper::ParseVTable(std::string t_typeName, size_t t_vtoffse
 size_t ClientInterfaceDumper::FindClientInterfaces()
 {
     std::vector<size_t> vtInfos;
-    if(!m_module->GetVTTypes(&vtInfos))
+    if( !m_module->GetVTTypes(&vtInfos)
+        || !m_relRoShdr
+        || m_sendSerializedFnOffset == -1
+      )
     {
-        return -1;
-    }
-
-    if(!m_relRoShdr)
-    {
-        return -1;
-    }
-
-    if(m_sendSerializedFnOffset == -1)
-    {
-        return -1;
+        return 0;
     }
 
     auto consts = m_module->GetConstants();
