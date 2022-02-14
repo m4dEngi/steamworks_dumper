@@ -9,6 +9,10 @@ EnumDumper::EnumDumper(ClientModule *t_module):
     m_relData(nullptr)
 {
     m_searchHint = m_module->FindStringLiteral("/data/src/common/enum_names.cpp");
+    if(m_searchHint == -1)
+    {
+        std::cout << "Enum search hint not found" << std::endl;
+    }
     m_relData = m_module->GetSectionHeader(".data.rel.ro.local");
 }
 

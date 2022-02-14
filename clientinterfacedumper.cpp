@@ -11,6 +11,21 @@ ClientInterfaceDumper::ClientInterfaceDumper(ClientModule *t_module):
                 "\x55\x57\x56\x53\xE8\x00\x00\x00\x00\x81\xC3\x00\x00\x00\x00\x81\xEC\x00\x00\x00\x00\x65\x8B\x15\x00\x00\x00\x00\x89\x94\x24\x00\x00\x00\x00\x31\xD2\x8B\xB4\x24\x00\x00\x00\x00",
                 "xxxxx????xx????xx????xxx????xxx????xxxxx????"
     );
+
+    if(m_sendSerializedFnOffset == -1)
+    {
+        // try alt signature for beta
+        m_sendSerializedFnOffset = t_module->FindSignature(
+            "\x55\x57\x56\x53\xE8\x00\x00\x00\x00\x81\xC3\x00\x00\x00\x00\x81\xEC\x00\x00\x00\x00\x8B\x84\x24\x00\x00\x00\x00\x8B\xBC\x24\x00\x00\x00\x00\x8B\xAC\x24\x00\x00\x00\x00\x89\x44\x24\x24",
+            "xxxxx????xx????xx????xxx????xxx????xxx????xxxx"
+        );
+    }
+
+    if(m_sendSerializedFnOffset == -1)
+    {
+        std::cout << "Could not find SendSerializedFunction offset!" << std::endl;
+    }
+
     m_roShdr = t_module->GetSectionHeader(".rodata");
 }
 

@@ -1,3 +1,4 @@
+#include <iostream>
 #include "emsgdumper.h"
 
 EMsgDumper::EMsgDumper(ClientModule* t_module):
@@ -6,7 +7,19 @@ EMsgDumper::EMsgDumper(ClientModule* t_module):
 {
     size_t emsgHint = m_module->FindSignature("\x8D\x83\x00\x00\x00\x00\xC7\x85\x00\x00\x00\x00\x00\x00\x00\x00\x89\x44\x24\x28\x8D\x83\x00\x00\x00\x00\xC7\x85\x00\x00\x00\x00\x00\x00\x00\x00\xC7\x85\x00\x00\x00\x00\x00\x00\x00\x00",
                                            "xx????xx????????xxxxxx????xx????????xx????????");
-    if(emsgHint != -1)
+
+    if(emsgHint == -1)
+    {
+        // try alt signature
+        emsgHint = m_module->FindSignature("\x8D\x83\x00\x00\x00\x00\xC7\x85\x00\x00\x00\x00\x00\x00\x00\x00\x89\x44\x24\x24\x8D\x83\x00\x00\x00\x00\xC7\x85\x00\x00\x00\x00\x00\x00\x00\x00\xC7\x85\x00\x00\x00\x00\x00\x00\x00\x00",
+                                           "xx????xx????????xxxxxx????xx????????xx????????");
+    }
+
+    if(emsgHint == -1)
+    {
+        std::cout << "Could not find EMsgInfo offset!" << std::endl;
+    }
+    else
     {
         m_emsgListOffset = m_constBase + *(int*)(m_image + emsgHint + 2);
     }

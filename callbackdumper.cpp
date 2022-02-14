@@ -11,15 +11,32 @@ CallbackDumper::CallbackDumper(ClientModule* t_module):
     // ( bool? )( this*, int32_t cbID, char* cbuf, int32_t szBuf )
     m_postCallbackToAll = m_module->FindSignature("\x55\x57\x56\x53\xE8\x00\x00\x00\x00\x81\xC3\x00\x00\x00\x00\x83\xEC\x2C\x8B\x44\x24\x4C\xC7\x44\x24\x00\x00\x00\x00\x00\x8B\x6C\x24\x40\x89\x44\x24\x10\x8B\x44\x24\x48",
                                                   "xxxxx????xx????xxxxxxxxxx?????xxxxxxxxxxxx");
+    if(m_postCallbackToAll == -1)
+    {
+        std::cout << "Could not find PostCallbackToAll offset" << std::endl;
+    }
+
     // ( bool? )( this*, int32_t cbID, char* cbuf, int32_t szBuf )
     m_postCallbackToUI = m_module->FindSignature("\x55\x57\x56\x53\xE8\x00\x00\x00\x00\x81\xC3\x00\x00\x00\x00\x83\xEC\x2C\x8B\x44\x24\x4C\xC7\x44\x24\x00\x00\x00\x00\x00\x89\x44\x24\x10\x8B\x44\x24\x48",
                                                  "xxxxx????xx????xxxxxxxxxx?????xxxxxxxx");
+    if(m_postCallbackToUI == -1)
+    {
+        std::cout << "Could not find PostCallbackToUI offset" << std::endl;
+    }
     // ( bool? )( this*, int32_t pipe(?), int32_t cbID, char* cbuf, int32_t szBuf )
     m_postCallbackToPipe = m_module->FindSignature("\x55\x57\x56\x53\xE8\x00\x00\x00\x00\x81\xC3\x00\x00\x00\x00\x83\xEC\x2C\x8B\x6C\x24\x44\x8B\x74\x24\x48\x8B\x83\x00\x00\x00\x00",
                                                    "xxxxx????xx????xxxxxxxxxxxxx????");
+    if(m_postCallbackToPipe == -1)
+    {
+        std::cout << "Could not find PostCallbackToPipe offset" << std::endl;
+    }
     // ( bool? )( this*, int32_t appid/pid(?), int32_t cbID, char* cbuf, int32_t szBuf )
     m_postCallbackToApp = m_module->FindSignature("\x55\x57\x56\x53\xE8\x00\x00\x00\x00\x81\xC3\x00\x00\x00\x00\x83\xEC\x2C\x83\x7C\x24\x00\x00\x0F\x84\x00\x00\x00\x00",
                                                   "xxxxx????xx????xxxxxx??xx????");
+    if(m_postCallbackToApp == -1)
+    {
+        std::cout << "Could not find PostCallbackToApp offset" << std::endl;
+    }
 }
 
 size_t CallbackDumper::GetCBRefs(size_t t_offset, std::vector<size_t> *t_out)
