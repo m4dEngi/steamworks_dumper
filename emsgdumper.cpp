@@ -1,5 +1,4 @@
 #include "emsgdumper.h"
-#include <iostream>
 
 EMsgDumper::EMsgDumper(ClientModule* t_module):
     DumperBase(t_module),
@@ -48,7 +47,7 @@ size_t EMsgDumper::FindEMsgInfos()
             break;
         }
 
-        m_emsgList[emsg->m_emsg].m_decriptor = m_image + emsg->m_descriptorOffset;
+        m_emsgList[emsg->m_emsg].m_descriptor = m_image + emsg->m_descriptorOffset;
         m_emsgList[emsg->m_emsg].m_emsg = emsg->m_emsg;
         m_emsgList[emsg->m_emsg].m_flags = emsg->m_flags;
         m_emsgList[emsg->m_emsg].m_serverType = emsg->m_serverType;

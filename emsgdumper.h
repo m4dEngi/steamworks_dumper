@@ -19,7 +19,7 @@ struct EMsg
     int32_t  m_emsg;
     int32_t  m_serverType;
     uint32_t m_flags;
-    std::string m_decriptor;
+    std::string m_descriptor;
 };
 
 class EMsgDumper : public DumperBase

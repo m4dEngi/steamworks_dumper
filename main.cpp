@@ -142,7 +142,7 @@ void DumpLegacyEMsgList(ClientModule* t_module, const std::string& t_outPath)
             out << "        \"emsg\": " << it->first << "," << std::endl;
             out << "        \"flags\": " <<  it->second.m_flags << "," << std::endl;
             out << "        \"server_type\": " << it->second.m_serverType << "," << std::endl;
-            out << "        \"name\": \"" << it->second.m_decriptor << "\"" << std::endl;
+            out << "        \"name\": \"" << it->second.m_descriptor << "\"" << std::endl;
             out << "    }";
 
             if(std::next(it) != emsgList->cend())
