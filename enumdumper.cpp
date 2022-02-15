@@ -13,6 +13,7 @@ EnumDumper::EnumDumper(ClientModule *t_module):
     {
         std::cout << "Enum search hint not found" << std::endl;
     }
+
     m_relData = m_module->GetSectionHeader(".data.rel.ro.local");
 }
 

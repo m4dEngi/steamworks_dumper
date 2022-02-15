@@ -8,8 +8,8 @@ ClientInterfaceDumper::ClientInterfaceDumper(ClientModule *t_module):
     m_relRoShdr = t_module->GetSectionHeader(".data.rel.ro");
     m_txtShdr = t_module->GetSectionHeader(".text");
     m_sendSerializedFnOffset = t_module->FindSignature(
-                "\x55\x57\x56\x53\xE8\x00\x00\x00\x00\x81\xC3\x00\x00\x00\x00\x81\xEC\x00\x00\x00\x00\x65\x8B\x15\x00\x00\x00\x00\x89\x94\x24\x00\x00\x00\x00\x31\xD2\x8B\xB4\x24\x00\x00\x00\x00",
-                "xxxxx????xx????xx????xxx????xxx????xxxxx????"
+        "\x55\x57\x56\x53\xE8\x00\x00\x00\x00\x81\xC3\x00\x00\x00\x00\x81\xEC\x00\x00\x00\x00\x65\x8B\x15\x00\x00\x00\x00\x89\x94\x24\x00\x00\x00\x00\x31\xD2\x8B\xB4\x24\x00\x00\x00\x00\x8B\xBC\x24\x00\x00\x00\x00",
+        "xxxxx????xx????xx????xxx????xxx????xxxxx????xxx????"
     );
 
     if(m_sendSerializedFnOffset == -1)
@@ -62,62 +62,76 @@ bool ClientInterfaceDumper::GetSerializedFuncInfo(std::string t_iname, size_t t_
             {
                 cs_x86* x86 = &ins[i].detail->x86;
 
-                if(ins[i].id == X86_INS_SUB)
+                switch(ins[i].id)
                 {
-                    if(x86->operands[0].reg == X86_REG_ESP)
+                    case X86_INS_SUB:
                     {
-                        stackAdj = x86->operands[1].imm;
-                    }
-                }
-
-                if(ins[i].id == X86_INS_LEA
-                   || ins[i].id == X86_INS_MOV
-                  )
-                {
-                    if(x86->operands[1].type == X86_OP_MEM)
-                    {
-                        if(x86->operands[1].mem.base == X86_REG_EBX)
+                        if(x86->operands[0].reg == X86_REG_ESP)
                         {
-                            size_t argOffset = m_constBase + x86->disp;
-                            if(m_roShdr->sh_addr < argOffset
-                               && argOffset < m_relRoShdr->sh_addr + m_roShdr->sh_size
-                              )
+                            stackAdj = x86->operands[1].imm;
+                        }
+                        break;
+                    }
+                    case X86_INS_LEA:
+                    case X86_INS_MOV:
+                    {
+                        if(x86->operands[1].type == X86_OP_MEM)
+                        {
+                            if(x86->operands[1].mem.base == X86_REG_EBX)
                             {
-                                possibleSerializeArgs.push_back(argOffset);
+                                size_t argOffset = m_constBase + x86->disp;
+                                if(m_roShdr->sh_addr < argOffset
+                                   && argOffset < m_relRoShdr->sh_addr + m_roShdr->sh_size
+                                  )
+                                {
+                                    possibleSerializeArgs.push_back(argOffset);
+                                }
+                            }
+                            else if( x86->operands[1].mem.base == X86_REG_ESP
+                                     && x86->disp > stackAdj
+                            )
+                            {
+                                // no idea how many times args could be addressed
+                                // so just store stack offsets above stack
+                                // reserve for local vars from function prologue in a set
+                                // that should give us approximate count of function args
+                                args.insert(x86->disp);
                             }
                         }
-                        else if( x86->operands[1].mem.base == X86_REG_ESP
-                                 && x86->disp > stackAdj
+                        break;
+                    }
+                    case X86_INS_CALL:
+                    {
+                        if(x86->operands[0].imm == m_sendSerializedFnOffset)
+                        {
+                            if(possibleSerializeArgs.size() == 2)
+                            {
+                                if(t_iname.find(m_image + possibleSerializeArgs[0]) != std::string_view::npos)
+                                {
+                                    *t_name = (const char*)(m_image + possibleSerializeArgs[1]);
+                                }
+                                else
+                                {
+                                    *t_name = (const char*)(m_image + possibleSerializeArgs[0]);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            possibleSerializeArgs.clear();
+                        }
+                        break;
+                    }
+                    case X86_INS_FLD:
+                    {
+                        if(x86->operands[0].type == X86_OP_MEM
+                           && x86->operands[0].mem.base == X86_REG_ESP
+                           && x86->disp > stackAdj
                         )
                         {
-                            // no idea how many times args could be addressed
-                            // so just store stack offsets above stack
-                            // reserve for local vars from function prologue in a set
-                            // that should give us approximate count of function args
                             args.insert(x86->disp);
                         }
-                    }
-                }
-
-                if(ins[i].id == X86_INS_CALL)
-                {
-                    if(x86->operands[0].imm == m_sendSerializedFnOffset)
-                    {
-                        if(possibleSerializeArgs.size() == 2)
-                        {
-                            if(t_iname.find(m_image + possibleSerializeArgs[0]) != std::string_view::npos)
-                            {
-                                *t_name = (const char*)(m_image + possibleSerializeArgs[1]);
-                            }
-                            else
-                            {
-                                *t_name = (const char*)(m_image + possibleSerializeArgs[0]);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        possibleSerializeArgs.clear();
+                        break;
                     }
                 }
             }

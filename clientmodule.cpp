@@ -225,47 +225,52 @@ bool ClientModule::Parse()
     {
         cs_x86* x86 = &(insn->detail->x86);
 
-        if( insn->id == X86_INS_LEA
-            || insn->id == X86_INS_MOV
-            || insn->id == X86_INS_CMP
-          )
+        switch(insn->id)
         {
-            // every time we see something like
-            //
-            // lea eax, [ebx - 0xFFFFFFFF]
-            //
-            // it's probably calculating relative offset to constant using .got.plt offset
-            // previously stored in EBX
-            // so we'll store that offset to use later for const size hint
-            for(int i = 0; i < x86->op_count; ++i)
+            case X86_INS_MOV:
+            case X86_INS_LEA:
+            case X86_INS_CMP:
             {
-                if( x86->operands[i].type == X86_OP_MEM
-                    && x86->operands[i].mem.base == X86_REG_EBX
+                // every time we see something like
+                //
+                // lea eax, [ebx - 0xFFFFFFFF]
+                //
+                // it's probably calculating relative offset to constant using .got.plt offset
+                // previously stored in EBX
+                // so we'll store that offset to use later for const size hint
+                for(int i = 0; i < x86->op_count; ++i)
+                {
+                    if( x86->operands[i].type == X86_OP_MEM
+                        && x86->operands[i].mem.base == X86_REG_EBX
+                      )
+                    {
+                        size_t constOffset = gotPlt->sh_addr + x86->disp;
+                        if(IsDataOffset(constOffset))
+                        {
+                            m_suspectConstants[constOffset].push_back(insn->address);
+                        }
+                        break;
+                    }
+                }
+                break;
+            }
+            case X86_INS_CALL:
+            {
+                if(x86->operands[0].type == X86_OP_IMM)
+                {
+                    m_functions[x86->operands[0].imm].push_back(insn->address);
+                }
+                break;
+            }
+            case X86_INS_PUSH:
+            {
+                if(x86->operands[0].type == X86_OP_REG
+                   && x86->operands[0].reg == X86_REG_EBP
                   )
                 {
-                    size_t constOffset = gotPlt->sh_addr + x86->disp;
-                    if(IsDataOffset(constOffset))
-                    {
-                        m_suspectConstants[constOffset].push_back(insn->address);
-                    }
-                    break;
+                    m_functions[insn->address].push_back(insn->address);
                 }
-            }
-        }
-        else if(insn->id == X86_INS_CALL)
-        {
-            if(x86->operands[0].type == X86_OP_IMM)
-            {
-                m_functions[x86->operands[0].imm].push_back(insn->address);
-            }
-        }
-        else if(insn->id == X86_INS_PUSH)
-        {
-            if(x86->operands[0].type == X86_OP_REG
-               && x86->operands[0].reg == X86_REG_EBP
-              )
-            {
-                m_functions[insn->address].push_back(insn->address);
+                break;
             }
         }
     }
@@ -321,6 +326,7 @@ bool ClientModule::FindRefOrigin(size_t t_offset, size_t* t_funcOffset, size_t* 
         {
             *t_funcSize = it->first - std::prev(it)->first;
         }
+
         if(t_funcOffset)
         {
             *t_funcOffset = std::prev(it)->first;

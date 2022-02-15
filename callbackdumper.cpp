@@ -85,7 +85,7 @@ bool CallbackDumper::GetCallbackInfoFromRef(size_t t_ref, size_t* t_cbID, size_t
                 {
                     possibleArgs[x86->operands[0].mem.disp] = x86->operands[1].imm;
                 }
-                if(ins[i].id == X86_INS_CALL)
+                else if(ins[i].id == X86_INS_CALL)
                 {
                     if( x86->operands[0].type == X86_OP_IMM
                         && ins[i].address == t_ref
@@ -107,13 +107,10 @@ bool CallbackDumper::GetCallbackInfoFromRef(size_t t_ref, size_t* t_cbID, size_t
                     possibleArgs.clear();
                 }
             }
-
             cs_free(ins, count);
         }
     }
-
     cs_close(&csHandle);
-
 
     return result;
 }
