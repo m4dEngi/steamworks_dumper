@@ -75,8 +75,8 @@ bool CallbackDumper::GetCallbackInfoFromRef(size_t t_ref, size_t* t_cbID, size_t
             std::map<size_t, size_t> possibleArgs;
             for(size_t i = 0; i < count; ++i)
             {
-                cs_insn* in = &ins[i];
                 cs_x86* x86 = &ins[i].detail->x86;
+
                 if(ins[i].id == X86_INS_MOV
                    && x86->operands[0].type == X86_OP_MEM
                    && x86->operands[0].mem.base == X86_REG_ESP

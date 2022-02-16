@@ -8,7 +8,7 @@ EnumDumper::EnumDumper(ClientModule *t_module):
     m_searchHint(-1),
     m_relData(nullptr)
 {
-    m_searchHint = m_module->FindStringLiteral("/data/src/common/enum_names.cpp");
+    m_searchHint = m_module->FindStringLiteral("Missing String for %s (%d)");
     if(m_searchHint == -1)
     {
         std::cout << "Enum search hint not found" << std::endl;
@@ -91,13 +91,13 @@ bool EnumDumper::GetEnumOffsetsByRef(size_t t_ref, size_t* t_name, size_t* t_val
                        if(memOffset == m_searchHint)
                        {
                             // found enum search hint, now to get it's name and offset in .data.rel
-                           if(possibleAssertArgs.size() < 3)
+                           if(possibleAssertArgs.size() < 2)
                            {
                                // something went wrong and no possible args were found
                                continue;
                            }
 
-                           enumNameOffset = *(possibleAssertArgs.cend() - 3);
+                           enumNameOffset = *(possibleAssertArgs.cend() - 2);
                        }
                     }
                 }
