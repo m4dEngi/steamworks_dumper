@@ -17,6 +17,7 @@ public:
 
     const char* GetImageBytes();
     const Elf32_Sym* GetSymbol(std::string_view t_name);
+    const size_t FindSymbols(std::string_view t_name, std::vector<const Elf32_Sym*>* t_out);
     const Elf32_Shdr* GetSectionHeader(std::string_view t_name);
     const std::map<size_t, std::vector<size_t>>* GetFunctions();
     const std::map<size_t, std::vector<size_t>>* GetConstants();
@@ -27,7 +28,7 @@ public:
     size_t GetVTTypes(std::vector<size_t>* t_out);
 
     size_t GetFunctionSize(size_t t_offset);
-    size_t FindSignature(const char* t_sign, const char* t_mask);
+    size_t FindSignature(const char* t_sign, const char* t_mask, size_t t_searchBaseOffset = -1);
     size_t FindStringLiteral(std::string_view t_string);;
     bool FindRefOrigin(size_t t_offset, size_t* t_funcOffset, size_t* t_funcSize);
 

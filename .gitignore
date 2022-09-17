@@ -1,5 +1,6 @@
 # generic cmake gitignore
 CMakeLists.txt.user
+CMakeLists.txt.user.*
 CMakeCache.txt
 CMakeFiles
 CMakeScripts

@@ -32,6 +32,24 @@ const Elf32_Sym* ClientModule::GetSymbol(std::string_view t_name)
     return nullptr;
 }
 
+const size_t ClientModule::FindSymbols(std::string_view t_name, std::vector<const Elf32_Sym *>* t_out)
+{
+    if(t_name.empty())
+    {
+        return 0;
+    }
+
+    for(int i = 0; i < m_numExtSyms; ++i)
+    {
+        if(std::string_view(m_extStrTab + m_extSyms[i].st_name).rfind(t_name) != std::string::npos)
+        {
+            t_out->push_back(&m_extSyms[i]);
+        }
+    }
+
+    return t_out->size();
+}
+
 const Elf32_Shdr* ClientModule::GetSectionHeader(std::string_view t_name)
 {
     return m_image.GetSectionHeader(t_name);
@@ -64,25 +82,14 @@ const std::vector<size_t>* ClientModule::GetRefsToSymbol(size_t t_offset)
 
 size_t ClientModule::GetVTTypes(std::vector<size_t> *t_out)
 {
-    const Elf32_Sym* ti = GetSymbol("_ZTVN10__cxxabiv117__class_type_infoE");
-    if(ti)
+    std::vector<const Elf32_Sym*> tis;
+    if(FindSymbols("_class_type_infoE", &tis) != 0)
     {
-        auto refs = GetRefsToSymbol(ti->st_value);
-        t_out->insert(t_out->end(), refs->cbegin(), refs->cend());
-    }
-
-    ti = GetSymbol("_ZTVN10__cxxabiv121__vmi_class_type_infoE");
-    if(ti)
-    {
-        auto refs = GetRefsToSymbol(ti->st_value);
-        t_out->insert(t_out->end(), refs->cbegin(), refs->cend());
-    }
-
-    ti = GetSymbol("_ZTVN10__cxxabiv120__si_class_type_infoE");
-    if(ti)
-    {
-        auto refs = GetRefsToSymbol(ti->st_value);
-        t_out->insert(t_out->end(), refs->cbegin(), refs->cend());
+        for(auto it = tis.begin(); it != tis.end(); ++it)
+        {
+            auto refs = GetRefsToSymbol((*it)->st_value);
+            t_out->insert(t_out->end(), refs->cbegin(), refs->cend());
+        }
     }
 
     return t_out->size();
@@ -238,10 +245,12 @@ bool ClientModule::Parse()
                 // it's probably calculating relative offset to constant using .got.plt offset
                 // previously stored in EBX
                 // so we'll store that offset to use later for const size hint
+                //
+                // probably not the best way to guess const offsets, but good enough for our needs
                 for(int i = 0; i < x86->op_count; ++i)
                 {
                     if( x86->operands[i].type == X86_OP_MEM
-                        && x86->operands[i].mem.base == X86_REG_EBX
+                        && x86->operands[i].mem.base != X86_REG_INVALID
                       )
                     {
                         size_t constOffset = gotPlt->sh_addr + x86->disp;
@@ -283,7 +292,7 @@ bool ClientModule::Parse()
     return true;
 }
 
-size_t ClientModule::FindSignature(const char* t_sign, const char* t_mask)
+size_t ClientModule::FindSignature(const char* t_sign, const char* t_mask, size_t t_searchBaseOffset)
 {
     size_t signLen = std::strlen(t_mask);
     if(signLen == 0)
@@ -293,6 +302,10 @@ size_t ClientModule::FindSignature(const char* t_sign, const char* t_mask)
 
     const Elf32_Shdr* text = m_image.GetSectionHeader(".text");
     const char* searchBase = m_imageData + text->sh_addr;
+    if(t_searchBaseOffset != -1)
+    {
+        searchBase = m_imageData + t_searchBaseOffset;
+    }
     const char* searchEnd = searchBase + text->sh_size - signLen;
 
     while(searchBase < searchEnd)

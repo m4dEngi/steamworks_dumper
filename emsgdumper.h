@@ -9,8 +9,9 @@ struct EMsgInfo
     int32_t  m_emsg;
     uint32_t m_flags;
     int32_t  m_serverType;
-    int32_t  m_unk;
+    int32_t  m_unk1;
     int32_t  m_descriptorOffset;
+    int32_t  m_unk2;
 };
 #pragma pack(pop)
 
