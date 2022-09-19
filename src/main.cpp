@@ -102,7 +102,7 @@ void DumpCallbacks(ClientModule* t_module, const std::string& t_outPath)
             out << std::hex;
             for(auto pit = it->second.m_postedAt.cbegin(); pit != it->second.m_postedAt.cend(); ++pit)
             {
-                out << "0x" << *pit;
+                out << "\"0x" << *pit << "\"";
                 if(std::next(pit) != it->second.m_postedAt.cend())
                 {
                     out << ",";
