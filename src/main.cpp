@@ -96,18 +96,19 @@ void DumpCallbacks(ClientModule* t_module, const std::string& t_outPath)
         {
             out << "    {" << std::endl;
             out << "        \"id\": " << it->second.m_callbackID << "," << std::endl;
+            out << "        \"name\": \"" << it->second.m_name << "\"," << std::endl;
             out << "        \"size\": " <<  it->second.m_callbackSize << "," << std::endl;
             out << "        \"posted_at\": [";
-
+            out << std::hex;
             for(auto pit = it->second.m_postedAt.cbegin(); pit != it->second.m_postedAt.cend(); ++pit)
             {
-                out << *pit;
+                out << "0x" << *pit;
                 if(std::next(pit) != it->second.m_postedAt.cend())
                 {
                     out << ",";
                 }
             }
-
+            out << std::dec;
             out << "]" << std::endl;
             out << "    }";
 

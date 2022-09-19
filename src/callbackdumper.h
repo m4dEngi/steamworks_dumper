@@ -7,6 +7,7 @@ struct CallbackInfo
 {
     int64_t m_callbackID;
     size_t m_callbackSize;
+    std::string m_name;
     std::vector<size_t> m_postedAt;
 };
 
@@ -27,11 +28,13 @@ private:
     bool GetCallbackInfoFromRef(size_t t_ref, size_t* t_cbID, size_t* t_cbSize);
 
     std::map<int64_t, CallbackInfo> m_callbacks;
+    std::map<int64_t, size_t> m_callbackNames;
 
     size_t m_postCallbackToAll;
     size_t m_postCallbackToPipe;
     size_t m_postCallbackToUI;
     size_t m_postCallbackToApp;
+    size_t m_logCallback;
 };
 
 #endif // CALLBACKDUMPER_H

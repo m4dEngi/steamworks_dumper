@@ -9,21 +9,21 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_executable(steamworks_dumper
-    main.cpp
-    moduleimage.h
-    moduleimage.cpp
-    clientmodule.h
-    clientmodule.cpp
-    dumperbase.h
-    dumperbase.cpp
-    enumdumper.h
-    enumdumper.cpp
-    clientinterfacedumper.h
-    clientinterfacedumper.cpp
-    callbackdumper.h
-    callbackdumper.cpp
-    emsgdumper.h
-    emsgdumper.cpp
+    src/main.cpp
+    src/moduleimage.h
+    src/moduleimage.cpp
+    src/clientmodule.h
+    src/clientmodule.cpp
+    src/dumperbase.h
+    src/dumperbase.cpp
+    src/enumdumper.h
+    src/enumdumper.cpp
+    src/clientinterfacedumper.h
+    src/clientinterfacedumper.cpp
+    src/callbackdumper.h
+    src/callbackdumper.cpp
+    src/emsgdumper.h
+    src/emsgdumper.cpp
 )
 
 target_link_libraries(steamworks_dumper ${CAPSTONE_LIBRARIES})

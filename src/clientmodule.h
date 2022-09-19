@@ -31,6 +31,7 @@ public:
     size_t FindSignature(const char* t_sign, const char* t_mask, size_t t_searchBaseOffset = -1);
     size_t FindStringLiteral(std::string_view t_string);;
     bool FindRefOrigin(size_t t_offset, size_t* t_funcOffset, size_t* t_funcSize);
+    bool IsDataOffset(size_t t_offset);
 
 private:
     ClientModule();
@@ -41,7 +42,6 @@ private:
     const char* m_imageData;
 
     std::map<size_t, size_t> m_dataSections;
-    bool IsDataOffset(size_t t_offset);
     void FindExtSymRefs();
 
     Elf32_Sym* m_extSyms;
