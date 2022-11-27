@@ -3,30 +3,26 @@
 #include <set>
 
 ClientInterfaceDumper::ClientInterfaceDumper(ClientModule *t_module):
-    DumperBase(t_module)
+    DumperBase(t_module),
+    m_relRoShdr(nullptr),
+    m_txtShdr(nullptr),
+    m_roShdr(nullptr),
+    m_sendSerializedFnOffset(-1)
 {
     m_relRoShdr = t_module->GetSectionHeader(".data.rel.ro");
+    m_relRoLocalShdr = t_module->GetSectionHeader(".data.rel.ro.local");
+    m_roShdr = t_module->GetSectionHeader(".rodata");
     m_txtShdr = t_module->GetSectionHeader(".text");
-    m_sendSerializedFnOffset = t_module->FindSignature(
-        "\x55\x57\x56\x53\xE8\x00\x00\x00\x00\x81\xC3\x00\x00\x00\x00\x81\xEC\x00\x00\x00\x00\x65\x8B\x15\x00\x00\x00\x00\x89\x94\x24\x00\x00\x00\x00\x31\xD2\x8B\xB4\x24\x00\x00\x00\x00\x8B\xBC\x24\x00\x00\x00\x00",
-        "xxxxx????xx????xx????xxx????xxx????xxxxx????xxx????"
-    );
 
-    if(m_sendSerializedFnOffset == -1)
-    {
-        // try alt signature for beta
-        m_sendSerializedFnOffset = t_module->FindSignature(
-            "\x55\x57\x56\x53\xE8\x00\x00\x00\x00\x81\xC3\x00\x00\x00\x00\x81\xEC\x00\x00\x00\x00\x8B\x84\x24\x00\x00\x00\x00\x8B\xBC\x24\x00\x00\x00\x00\x8B\xAC\x24\x00\x00\x00\x00\x89\x44\x24\x24",
-            "xxxxx????xx????xx????xxx????xxx????xxx????xxxx"
-        );
-    }
+    m_sendSerializedFnOffset = t_module->FindSignature(
+        "\x55\x89\xE5\x57\x56\xE8\x00\x00\x00\x00\x81\xC6\x00\x00\x00\x00\x53\x81\xEC\x00\x00\x00\x00\x8B\x45\x08\x89\x85\x00\x00\x00\x00\x8B\x45\x10\x8B\xBE\x00\x00\x00\x00\x89\x85\x00\x00\x00\x00",
+        "xxxxxx????xx????xxx????xxxxx????xxxxx????xx????"
+    );
 
     if(m_sendSerializedFnOffset == -1)
     {
         std::cout << "Could not find SendSerializedFunction offset!" << std::endl;
     }
-
-    m_roShdr = t_module->GetSectionHeader(".rodata");
 }
 
 ClientInterfaceDumper::~ClientInterfaceDumper()
@@ -45,7 +41,7 @@ bool ClientInterfaceDumper::GetSerializedFuncInfo(std::string t_iname, size_t t_
     csh csHandle;
     cs_insn *ins;
     size_t count;
-    size_t stackAdj = 0;
+    int32_t stackAdj = 0;
     std::set<int32_t> args;
 
     if(cs_open(CS_ARCH_X86, CS_MODE_32, &csHandle) == CS_ERR_OK)
@@ -64,11 +60,14 @@ bool ClientInterfaceDumper::GetSerializedFuncInfo(std::string t_iname, size_t t_
 
                 switch(ins[i].id)
                 {
-                    case X86_INS_SUB:
+                    case X86_INS_PUSH:
+                    case X86_INS_FLD:
                     {
-                        if(x86->operands[0].reg == X86_REG_ESP)
+                        if( x86->operands[0].mem.base == X86_REG_EBP
+                            && x86->disp > 0
+                        )
                         {
-                            stackAdj = x86->operands[1].imm;
+                            args.insert(x86->disp);
                         }
                         break;
                     }
@@ -77,7 +76,7 @@ bool ClientInterfaceDumper::GetSerializedFuncInfo(std::string t_iname, size_t t_
                     {
                         if(x86->operands[1].type == X86_OP_MEM)
                         {
-                            if(x86->operands[1].mem.base == X86_REG_EBX)
+                            if(m_module->IsDataOffset(m_constBase + x86->disp))
                             {
                                 size_t argOffset = m_constBase + x86->disp;
                                 if(m_roShdr->sh_addr < argOffset
@@ -87,8 +86,8 @@ bool ClientInterfaceDumper::GetSerializedFuncInfo(std::string t_iname, size_t t_
                                     possibleSerializeArgs.push_back(argOffset);
                                 }
                             }
-                            else if( x86->operands[1].mem.base == X86_REG_ESP
-                                     && x86->disp > stackAdj
+                            else if( x86->operands[1].mem.base == X86_REG_EBP
+                                     && x86->disp > 0
                             )
                             {
                                 // no idea how many times args could be addressed
@@ -122,17 +121,6 @@ bool ClientInterfaceDumper::GetSerializedFuncInfo(std::string t_iname, size_t t_
                         }
                         break;
                     }
-                    case X86_INS_FLD:
-                    {
-                        if(x86->operands[0].type == X86_OP_MEM
-                           && x86->operands[0].mem.base == X86_REG_ESP
-                           && x86->disp > stackAdj
-                        )
-                        {
-                            args.insert(x86->disp);
-                        }
-                        break;
-                    }
                 }
             }
             cs_free(ins, count);
@@ -158,7 +146,7 @@ void ClientInterfaceDumper::ParseVTable(std::string t_typeName, size_t t_vtoffse
         size_t fArgc = 0;
         InterfaceFunction func;
 
-        if(!GetSerializedFuncInfo(t_typeName, vtFuncs[vmIdx], &fArgc, &fName))
+        if(!GetSerializedFuncInfo(t_typeName, vtFuncs[vmIdx], &fArgc, &fName) || fName.empty())
         {
             fName = "Unknown_" + std::to_string(vtFuncs[vmIdx]);
         }
@@ -184,8 +172,6 @@ size_t ClientInterfaceDumper::FindClientInterfaces()
     }
 
     auto consts = m_module->GetConstants();
-    auto relConstBegin = consts->lower_bound(m_relRoShdr->sh_addr);
-    auto relConstEnd = consts->upper_bound(m_relRoShdr->sh_addr + m_relRoShdr->sh_size);
 
     for(auto it = vtInfos.cbegin(); it != vtInfos.cend(); ++it)
     {
@@ -196,13 +182,12 @@ size_t ClientInterfaceDumper::FindClientInterfaces()
             && vtName.find("Base") == std::string_view::npos
           )
         {
-            for(auto cit = relConstBegin; cit != relConstEnd; ++cit)
+            for(auto cit = consts->cbegin(); cit != consts->cend(); ++cit)
             {
                 if(*(int32_t*)(m_image + cit->first - 4) == *it)
                 {
                     std::string iname(vtName.substr(vtName.find("IClient")));
                     m_interfaces[iname].m_foundAt = cit->first;
-
                     ParseVTable(iname, cit->first);
                 }
             }

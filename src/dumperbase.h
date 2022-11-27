@@ -13,6 +13,8 @@ protected:
     size_t m_constBase;
     const char* m_image;
 
+    bool GetImmStackValue(cs_x86 *t_ins, int64_t *t_out);
+
 private:
     DumperBase();
 

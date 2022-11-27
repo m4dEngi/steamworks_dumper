@@ -5,8 +5,8 @@ EMsgDumper::EMsgDumper(ClientModule* t_module):
     DumperBase(t_module),
     m_emsgListOffset(-1)
 {
-    size_t emsgHint = m_module->FindSignature("\x8D\x91\x00\x00\x00\x00\x89\x10\x8B\x44\x24\x08\xC7\x00\x00\x00\x00\x00\xC3",
-                                           "xx????xxxxxxxx????x");
+    size_t emsgHint = m_module->FindSignature("\x8D\x90\x00\x00\x00\x00\x8B\x44\x24\x04\x89\x10\x8B\x44\x24\x08\xC7\x00\x00\x00\x00\x00",
+                                           "xx????xxxxxxxxxxxx????");
 
     if(emsgHint == -1)
     {

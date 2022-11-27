@@ -31,6 +31,7 @@ private:
     bool GetSerializedFuncInfo(std::string t_iname, size_t t_offset, size_t* t_argc, std::string* t_name);
 
     const Elf32_Shdr* m_relRoShdr;
+    const Elf32_Shdr* m_relRoLocalShdr;
     const Elf32_Shdr* m_txtShdr;
     const Elf32_Shdr* m_roShdr;
 

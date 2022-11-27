@@ -25,15 +25,17 @@ private:
     CallbackDumper();
 
     size_t GetCBRefs(size_t t_offset, std::vector<size_t>* t_out);
-    bool GetCallbackInfoFromRef(size_t t_ref, size_t* t_cbID, size_t* t_cbSize);
+    bool GetCallbackInfoFromRef(size_t t_ref, int64_t* t_cbID, size_t* t_cbSize);
 
     std::map<int64_t, CallbackInfo> m_callbacks;
     std::map<int64_t, size_t> m_callbackNames;
 
-    size_t m_postCallbackToAll;
+    size_t m_postCallbackInternal;
     size_t m_postCallbackToPipe;
     size_t m_postCallbackToUI;
+    size_t m_postCallbackToAll;
     size_t m_postCallbackToApp;
+    size_t m_postCallbackToServer;
     size_t m_logCallback;
 };
 
