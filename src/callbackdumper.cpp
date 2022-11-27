@@ -179,7 +179,8 @@ bool CallbackDumper::GetCallbackInfoFromRef(size_t t_ref, int64_t* t_cbID, size_
                                         || !GetImmStackValue(std::prev(probablyStackArgs.cend(), 2)->second, (int64_t*)t_cbID)
                                     )
                                     {
-                                        return false;
+                                        result = false;
+                                        break;
                                     }
                                     result = true;
                                 }
@@ -193,7 +194,8 @@ bool CallbackDumper::GetCallbackInfoFromRef(size_t t_ref, int64_t* t_cbID, size_
                                         || !GetImmStackValue(std::prev(probablyStackArgs.cend(), 3)->second, (int64_t*)t_cbID)
                                     )
                                     {
-                                        return false;
+                                        result = false;
+                                        break;
                                     }
                                     result = true;
                                 }
