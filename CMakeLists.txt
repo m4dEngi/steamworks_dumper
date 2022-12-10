@@ -16,6 +16,8 @@ add_executable(steamworks_dumper
     src/clientmodule.cpp
     src/dumperbase.h
     src/dumperbase.cpp
+    src/randomstack.cpp
+    src/randomstack.h
     src/enumdumper.h
     src/enumdumper.cpp
     src/clientinterfacedumper.h

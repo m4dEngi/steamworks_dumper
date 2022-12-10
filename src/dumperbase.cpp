@@ -12,6 +12,11 @@ DumperBase::DumperBase(ClientModule *t_module):
     m_image = t_module->GetImageBytes();
 }
 
+DumperBase::~DumperBase()
+{
+
+}
+
 // just a little helper function that only makes sense for
 // immediate function args passed on stack
 bool DumperBase::GetImmStackValue(cs_x86 *t_ins, int64_t *t_out)
@@ -36,7 +41,3 @@ bool DumperBase::GetImmStackValue(cs_x86 *t_ins, int64_t *t_out)
     return false;
 }
 
-DumperBase::~DumperBase()
-{
-
-}

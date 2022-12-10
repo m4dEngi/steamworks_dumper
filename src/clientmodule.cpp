@@ -243,7 +243,7 @@ bool ClientModule::Parse()
                 // lea eax, [ebx - 0xFFFFFFFF]
                 //
                 // it's probably calculating relative offset to constant using .got.plt offset
-                // previously stored in EBX
+                // previously stored in a reg as base
                 // so we'll store that offset to use later for const size hint
                 //
                 // probably not the best way to guess const offsets, but good enough for our needs
@@ -271,6 +271,11 @@ bool ClientModule::Parse()
                 }
                 break;
             }
+
+            // Turns out using PUSH EBP/ESP as a marker for function prologue
+            // isn't a good idea
+            //
+            // TODO: Figure out a better way to find functions prologue
             case X86_INS_PUSH:
             {
                 if(x86->operands[0].type == X86_OP_REG

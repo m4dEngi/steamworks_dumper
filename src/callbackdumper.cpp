@@ -1,6 +1,8 @@
-#include "callbackdumper.h"
 #include <iostream>
 #include <deque>
+
+#include "callbackdumper.h"
+#include "randomstack.h"
 
 CallbackDumper::CallbackDumper(ClientModule* t_module):
     DumperBase(t_module),
@@ -112,59 +114,25 @@ bool CallbackDumper::GetCallbackInfoFromRef(size_t t_ref, int64_t* t_cbID, size_
         cs_option(csHandle, CS_OPT_SKIPDATA, CS_OPT_ON);
         cs_option(csHandle, CS_OPT_DETAIL, CS_OPT_ON);
 
+        RandomAccessStack ras;
+
         count = cs_disasm(csHandle, (uint8_t*)(m_image + funcOffset), funcSize, funcOffset, 0, &ins);
         if(count > 0)
         {
-            std::map<int32_t, cs_x86*> probablyStackArgs;
-            std::map<x86_reg, cs_x86*> possibleRegConsts;
-
-            size_t annoyance = m_module->FindStringLiteral("- callback definition not available\n");
-
             for(size_t i = 0; i < count; ++i)
             {
                 cs_x86* x86 = &ins[i].detail->x86;
 
+                ras.Update(&ins[i]);
+
                 switch (ins[i].id)
                 {
-                    case X86_INS_PUSH:
-                    {
-                        int32_t espDisp = 0;
-                        if(probablyStackArgs.size() > 0)
-                        {
-                            espDisp = (--probablyStackArgs.cend())->first + 4;
-                        }
-                        probablyStackArgs[espDisp] = x86;
-
-                        break;
-                    }
-                    case X86_INS_MOV:
-                    {
-                        if( x86->operands[0].type == X86_OP_MEM
-                            && x86->operands[0].mem.base == X86_REG_ESP
-                        )
-                        {
-                            probablyStackArgs[x86->operands[0].mem.disp] = x86;
-                        }
-
-                        break;
-                    }
-                    case X86_INS_LEA:
-                    {
-                        if(m_module->IsDataOffset(x86->operands[1].mem.disp + m_constBase))
-                        {
-                            // just not interested in this particular const
-                            if(x86->operands[1].mem.disp + m_constBase != annoyance)
-                            {
-                                possibleRegConsts[x86->operands[0].reg] = x86;
-                            }
-                        }
-
-                        break;
-                    }
                     case X86_INS_CALL:
                     {
                         if( x86->operands[0].type == X86_OP_IMM )
                         {
+                            int32_t stackOff = ras.GetOffset();
+
                             if(ins[i].address == t_ref)
                             {
                                 if( (    x86->operands[0].imm == m_postCallbackInternal
@@ -172,11 +140,11 @@ bool CallbackDumper::GetCallbackInfoFromRef(size_t t_ref, int64_t* t_cbID, size_
                                       || x86->operands[0].imm == m_postCallbackToAll
                                       || x86->operands[0].imm == m_postCallbackToServer
                                     )
-                                    && probablyStackArgs.size() > 3   // all have 4 args on the stack & same prototype
+                                    && ras.Size() > 3   // all have 4 args on the stack & same prototype
                                 )
                                 {
-                                    if(    !GetImmStackValue(std::prev(probablyStackArgs.cend(), 4)->second, (int64_t*)t_cbSize)
-                                        || !GetImmStackValue(std::prev(probablyStackArgs.cend(), 2)->second, (int64_t*)t_cbID)
+                                    if(    !GetImmStackValue(ras[stackOff - 12], (int64_t*)t_cbSize)
+                                        || !GetImmStackValue(ras[stackOff - 4], (int64_t*)t_cbID)
                                     )
                                     {
                                         result = false;
@@ -184,14 +152,14 @@ bool CallbackDumper::GetCallbackInfoFromRef(size_t t_ref, int64_t* t_cbID, size_
                                     }
                                     result = true;
                                 }
-                                else if( (     x86->operands[0].imm == m_postCallbackToPipe
-                                            || x86->operands[0].imm == m_postCallbackToApp
+                                else if( (    x86->operands[0].imm == m_postCallbackToPipe
+                                           || x86->operands[0].imm == m_postCallbackToApp
                                     )
-                                    && probablyStackArgs.size() > 4   // both have 5 args on the stack & same prototype
+                                    && ras.Size() > 4   // both have 5 args on the stack & same prototype
                                 )
                                 {
-                                    if(    !GetImmStackValue(std::prev(probablyStackArgs.cend(), 5)->second, (int64_t*)t_cbSize)
-                                        || !GetImmStackValue(std::prev(probablyStackArgs.cend(), 3)->second, (int64_t*)t_cbID)
+                                    if(    !GetImmStackValue(ras[stackOff - 16], (int64_t*)t_cbSize)
+                                        || !GetImmStackValue(ras[stackOff - 8], (int64_t*)t_cbID)
                                     )
                                     {
                                         result = false;
@@ -203,37 +171,17 @@ bool CallbackDumper::GetCallbackInfoFromRef(size_t t_ref, int64_t* t_cbID, size_
 
                                 break;
                             }
-
-                            if( x86->operands[0].imm == m_logCallback && probablyStackArgs.size() > 0 )
+                            else if( x86->operands[0].imm == m_logCallback)
                             {
-                                // looks like we found a wild LogCallback function
-                                // it has 2 args: 1st is callback name offset passed by reg
-                                //                2nd is callbackid
-                                auto nameRegIT = std::prev(probablyStackArgs.cend(), 1);
-                                x86_reg constReg = nameRegIT->second->operands[0].reg;
-                                if(nameRegIT->second->op_count > 1)
+                                int64_t cbID = 0;
+                                if(     GetImmStackValue(ras[stackOff - 4], &cbID)
+                                     && ras[stackOff]->operands[0].reg != X86_REG_INVALID
+                                  )
                                 {
-                                    constReg = nameRegIT->second->operands[1].reg;
-                                }
-                                int64_t cbid = 0;
-                                if(    GetImmStackValue(std::prev(probablyStackArgs.cend(), 2)->second, &cbid)
-                                    && constReg != X86_REG_INVALID
-                                )
-                                {
-                                    if( possibleRegConsts.find(constReg) != possibleRegConsts.cend() &&
-                                        m_callbackNames.find(cbid) == m_callbackNames.cend() &&
-                                        possibleRegConsts[constReg] != nullptr
-                                    )
-                                    {
-                                        m_callbackNames[cbid] = m_constBase + possibleRegConsts[constReg]->operands[1].mem.disp;
-                                    }
+                                    m_callbackNames[cbID] = m_constBase + ras[stackOff]->operands[1].mem.disp;
                                 }
                             }
                         }
-
-                        probablyStackArgs.clear();
-                        possibleRegConsts.clear();
-
                         break;
                     }
                     default:
@@ -247,8 +195,6 @@ bool CallbackDumper::GetCallbackInfoFromRef(size_t t_ref, int64_t* t_cbID, size_
 
     return result;
 }
-
-
 
 CallbackDumper::~CallbackDumper()
 {

@@ -1,4 +1,5 @@
 #include "clientinterfacedumper.h"
+#include "randomstack.h"
 #include <iostream>
 #include <set>
 
@@ -41,7 +42,6 @@ bool ClientInterfaceDumper::GetSerializedFuncInfo(std::string t_iname, size_t t_
     csh csHandle;
     cs_insn *ins;
     size_t count;
-    int32_t stackAdj = 0;
     std::set<int32_t> args;
 
     if(cs_open(CS_ARCH_X86, CS_MODE_32, &csHandle) == CS_ERR_OK)
@@ -49,7 +49,7 @@ bool ClientInterfaceDumper::GetSerializedFuncInfo(std::string t_iname, size_t t_
         cs_option(csHandle, CS_OPT_SKIPDATA, CS_OPT_ON);
         cs_option(csHandle, CS_OPT_DETAIL, CS_OPT_ON);
 
-        std::vector<size_t> possibleSerializeArgs;
+        RandomAccessStack ras;
 
         count = cs_disasm(csHandle, (uint8_t*)(m_image + t_offset), funcSize, t_offset, 0, &ins);
         if(count > 0)
@@ -57,6 +57,8 @@ bool ClientInterfaceDumper::GetSerializedFuncInfo(std::string t_iname, size_t t_
             for (size_t i = 0; i < count; i++)
             {
                 cs_x86* x86 = &ins[i].detail->x86;
+
+                ras.Update(&ins[i]);
 
                 switch(ins[i].id)
                 {
@@ -76,17 +78,7 @@ bool ClientInterfaceDumper::GetSerializedFuncInfo(std::string t_iname, size_t t_
                     {
                         if(x86->operands[1].type == X86_OP_MEM)
                         {
-                            if(m_module->IsDataOffset(m_constBase + x86->disp))
-                            {
-                                size_t argOffset = m_constBase + x86->disp;
-                                if(m_roShdr->sh_addr < argOffset
-                                   && argOffset < m_relRoShdr->sh_addr + m_roShdr->sh_size
-                                  )
-                                {
-                                    possibleSerializeArgs.push_back(argOffset);
-                                }
-                            }
-                            else if( x86->operands[1].mem.base == X86_REG_EBP
+                            if( x86->operands[1].mem.base == X86_REG_EBP
                                      && x86->disp > 0
                             )
                             {
@@ -103,22 +95,17 @@ bool ClientInterfaceDumper::GetSerializedFuncInfo(std::string t_iname, size_t t_
                     {
                         if(x86->operands[0].imm == m_sendSerializedFnOffset)
                         {
-                            if(possibleSerializeArgs.size() == 2)
+                            if(ras.Size() > 4)
                             {
-                                if(t_iname.find(m_image + possibleSerializeArgs[0]) != std::string_view::npos)
+                                int32_t stackOffset = ras.GetOffset();
+                                size_t nameOffset = m_constBase + ras[stackOffset - 16]->disp;
+                                if(m_module->IsDataOffset(nameOffset))
                                 {
-                                    *t_name = (const char*)(m_image + possibleSerializeArgs[1]);
-                                }
-                                else
-                                {
-                                    *t_name = (const char*)(m_image + possibleSerializeArgs[0]);
+                                    *t_name = (const char*)(m_image + nameOffset);
                                 }
                             }
                         }
-                        else
-                        {
-                            possibleSerializeArgs.clear();
-                        }
+
                         break;
                     }
                 }
@@ -137,7 +124,7 @@ void ClientInterfaceDumper::ParseVTable(std::string t_typeName, size_t t_vtoffse
 {
     int32_t* vtFuncs = (int32_t*)(m_image + t_vtoffset);
     int vmIdx = 0;
-    while(vtFuncs[vmIdx] != 0
+    while(   vtFuncs[vmIdx] != 0
           && vtFuncs[vmIdx] <= m_txtShdr->sh_addr + m_txtShdr->sh_size
           && vtFuncs[vmIdx] > m_txtShdr->sh_addr
          )
@@ -163,7 +150,7 @@ void ClientInterfaceDumper::ParseVTable(std::string t_typeName, size_t t_vtoffse
 size_t ClientInterfaceDumper::FindClientInterfaces()
 {
     std::vector<size_t> vtInfos;
-    if( !m_module->GetVTTypes(&vtInfos)
+    if(    !m_module->GetVTTypes(&vtInfos)
         || !m_relRoShdr
         || m_sendSerializedFnOffset == -1
       )
@@ -177,7 +164,7 @@ size_t ClientInterfaceDumper::FindClientInterfaces()
     {
         size_t strOffset = *(int32_t*)(m_image + *it + 4);
         std::string_view vtName(m_image + strOffset);
-        if( vtName.find("IClient") != std::string_view::npos
+        if(    vtName.find("IClient") != std::string_view::npos
             && vtName.find("Map") != std::string_view::npos
             && vtName.find("Base") == std::string_view::npos
           )
