@@ -51,29 +51,31 @@ void DumpInterfaces(ClientModule* t_module, const std::string& t_outPath)
         auto vtables = iDumper.GetInterfaces();
         for(auto it = vtables->cbegin(); it != vtables->cend(); ++it)
         {
-            std::snprintf(fileOutPath, outPathSize, "%s/%s.h", t_outPath.c_str(), it->first.c_str());
+            std::snprintf(fileOutPath, outPathSize, "%s/%s.json", t_outPath.c_str(), it->first.c_str());
             std::ofstream out(fileOutPath, std::ios_base::out);
 
-            out << "class " << it->first << std::endl;
-            out << "{" << std::endl << "public:" <<std::endl;
+            out << "{" << std::endl;
+            out << "    \"name\": \""                    << it->first            << "\"," << std::endl;
+            out << "    \"found_at\": \"0x" << std::hex  << it->second.m_foundAt << std::dec << "\"," << std::endl;
+            out << "    \"functions\": [ "  << std::endl;
 
             for(auto vtIt = it->second.m_functions.cbegin(); vtIt != it->second.m_functions.cend(); ++vtIt)
             {
-                out << "    virtual unknown_ret " << (*vtIt).m_name << "(";
-                int numArgs =  (*vtIt).m_argc - 1; // minus this* ptr
-                for(int i = 0; i < numArgs; ++i)
-                {
-                    out << "void*";
+                out << "        {" << std::endl;
+                out << "            \"name\": \"" << vtIt->m_name << "\"," << std::endl;
+                out << "            \"argc\": \"" << vtIt->m_argc << "\"," << std::endl;
+                out << "            \"addr\": \"0x" << std::hex << vtIt->m_addr << std::dec << "\""  << std::endl;
+                out << "        }";
 
-                    if(i !=  numArgs - 1)
-                    {
-                        out << ",";
-                    }
+                if(std::next(vtIt) != it->second.m_functions.cend())
+                {
+                    out << ",";
                 }
-                out << ") = 0;" << std::endl;
+                out << std::endl;
             }
 
-            out << "};" << std::endl;
+            out << "    ]" << std::endl;
+            out << "}" << std::endl;
         }
     }
 }
@@ -95,9 +97,9 @@ void DumpCallbacks(ClientModule* t_module, const std::string& t_outPath)
         for(auto it = callbacks->cbegin(); it != callbacks->cend(); ++it)
         {
             out << "    {" << std::endl;
-            out << "        \"id\": " << it->second.m_callbackID << "," << std::endl;
-            out << "        \"name\": \"" << it->second.m_name << "\"," << std::endl;
-            out << "        \"size\": " <<  it->second.m_callbackSize << "," << std::endl;
+            out << "        \"id\": "          << it->second.m_callbackID    << ","   << std::endl;
+            out << "        \"name\": \""      << it->second.m_name          << "\"," << std::endl;
+            out << "        \"size\": "        <<  it->second.m_callbackSize << ","   << std::endl;
             out << "        \"posted_at\": [";
             out << std::hex;
             for(auto pit = it->second.m_postedAt.cbegin(); pit != it->second.m_postedAt.cend(); ++pit)
@@ -140,10 +142,10 @@ void DumpLegacyEMsgList(ClientModule* t_module, const std::string& t_outPath)
         for(auto it = emsgList->cbegin(); it != emsgList->cend(); ++it)
         {
             out << "    {" << std::endl;
-            out << "        \"emsg\": " << it->first << "," << std::endl;
-            out << "        \"flags\": " <<  it->second.m_flags << "," << std::endl;
-            out << "        \"server_type\": " << it->second.m_serverType << "," << std::endl;
-            out << "        \"name\": \"" << it->second.m_descriptor << "\"" << std::endl;
+            out << "        \"emsg\": "        << it->first               <<  ","  << std::endl;
+            out << "        \"flags\": "       << it->second.m_flags      <<  ","  << std::endl;
+            out << "        \"server_type\": " << it->second.m_serverType <<  ","  << std::endl;
+            out << "        \"name\": \""      << it->second.m_descriptor <<  "\"" << std::endl;
             out << "    }";
 
             if(std::next(it) != emsgList->cend())

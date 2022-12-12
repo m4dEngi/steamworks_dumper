@@ -144,7 +144,7 @@ bool CallbackDumper::GetCallbackInfoFromRef(size_t t_ref, int64_t* t_cbID, size_
                                 )
                                 {
                                     if(    !GetImmStackValue(ras[stackOff - 12], (int64_t*)t_cbSize)
-                                        || !GetImmStackValue(ras[stackOff - 4], (int64_t*)t_cbID)
+                                        || !GetImmStackValue(ras[stackOff - 4],  (int64_t*)t_cbID)
                                     )
                                     {
                                         result = false;
@@ -159,7 +159,7 @@ bool CallbackDumper::GetCallbackInfoFromRef(size_t t_ref, int64_t* t_cbID, size_
                                 )
                                 {
                                     if(    !GetImmStackValue(ras[stackOff - 16], (int64_t*)t_cbSize)
-                                        || !GetImmStackValue(ras[stackOff - 8], (int64_t*)t_cbID)
+                                        || !GetImmStackValue(ras[stackOff - 8],  (int64_t*)t_cbID)
                                     )
                                     {
                                         result = false;
@@ -167,8 +167,6 @@ bool CallbackDumper::GetCallbackInfoFromRef(size_t t_ref, int64_t* t_cbID, size_
                                     }
                                     result = true;
                                 }
-
-
                                 break;
                             }
                             else if( x86->operands[0].imm == m_logCallback)

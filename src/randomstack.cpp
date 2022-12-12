@@ -52,7 +52,7 @@ cs_x86 *&RandomAccessStack::operator[](int32_t t_offset)
 //
 //  lots of assumptions and misconceptions here
 //
-// 1st we assume that EBP holds the stack frame snapshot
+//  1st we assume that EBP holds the stack frame snapshot
 //      which is recommended, but not guaranteed
 //  2nd just a limited and inaccurate stack tracking is done,
 //      not taking into account all possible ways to modify stack
