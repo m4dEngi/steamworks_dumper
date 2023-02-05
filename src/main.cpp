@@ -183,7 +183,7 @@ int main(int argc, char* argv[])
     program.add_argument("--dump-offsets")
             .default_value(false)
             .implicit_value(true)
-            .help("include relative offsets/sddresses in dumps");
+            .help("include relative offsets/addresses in dumps");
 
     program.add_argument("in")
             .help(".so in")
