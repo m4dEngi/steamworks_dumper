@@ -14,3 +14,5 @@ _deps
 
 # ignore builds 
 build/
+build_debug/
+
