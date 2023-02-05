@@ -8,6 +8,8 @@ pkg_check_modules (CAPSTONE REQUIRED capstone)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+add_subdirectory(external)
+
 add_executable(steamworks_dumper
     src/main.cpp
     src/moduleimage.h
@@ -28,4 +30,4 @@ add_executable(steamworks_dumper
     src/emsgdumper.cpp
 )
 
-target_link_libraries(steamworks_dumper ${CAPSTONE_LIBRARIES})
+target_link_libraries(steamworks_dumper ${CAPSTONE_LIBRARIES} argparse)

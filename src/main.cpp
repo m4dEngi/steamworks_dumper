@@ -5,6 +5,7 @@
 #include "clientinterfacedumper.h"
 #include "callbackdumper.h"
 #include "emsgdumper.h"
+#include <argparse/argparse.hpp>
 
 void DumpEnums(ClientModule* t_module, const std::string& t_outPath)
 {
@@ -37,7 +38,7 @@ void DumpEnums(ClientModule* t_module, const std::string& t_outPath)
     }
 }
 
-void DumpInterfaces(ClientModule* t_module, const std::string& t_outPath)
+void DumpInterfaces(ClientModule* t_module, const std::string& t_outPath, bool t_includeOffsets)
 {
     ClientInterfaceDumper iDumper(t_module);
     size_t numIfaces = iDumper.FindClientInterfaces();
@@ -56,15 +57,23 @@ void DumpInterfaces(ClientModule* t_module, const std::string& t_outPath)
 
             out << "{" << std::endl;
             out << "    \"name\": \""                    << it->first            << "\"," << std::endl;
-            out << "    \"found_at\": \"0x" << std::hex  << it->second.m_foundAt << std::dec << "\"," << std::endl;
+            if(t_includeOffsets)
+            {
+                out << "    \"found_at\": \"0x" << std::hex  << it->second.m_foundAt << std::dec << "\"," << std::endl;
+            }
             out << "    \"functions\": [ "  << std::endl;
 
             for(auto vtIt = it->second.m_functions.cbegin(); vtIt != it->second.m_functions.cend(); ++vtIt)
             {
                 out << "        {" << std::endl;
                 out << "            \"name\": \"" << vtIt->m_name << "\"," << std::endl;
-                out << "            \"argc\": \"" << vtIt->m_argc << "\"," << std::endl;
-                out << "            \"addr\": \"0x" << std::hex << vtIt->m_addr << std::dec << "\""  << std::endl;
+                out << "            \"argc\": \"" << vtIt->m_argc << "\"";
+                if(t_includeOffsets)
+                {
+                    out << "," << std::endl;
+                    out << "            \"addr\": \"0x" << std::hex << vtIt->m_addr << std::dec << "\"";
+                }
+                out << std::endl;
                 out << "        }";
 
                 if(std::next(vtIt) != it->second.m_functions.cend())
@@ -77,10 +86,12 @@ void DumpInterfaces(ClientModule* t_module, const std::string& t_outPath)
             out << "    ]" << std::endl;
             out << "}" << std::endl;
         }
+
+        delete [] fileOutPath;
     }
 }
 
-void DumpCallbacks(ClientModule* t_module, const std::string& t_outPath)
+void DumpCallbacks(ClientModule* t_module, const std::string& t_outPath, bool t_includeOffsets)
 {
     CallbackDumper cbDumper(t_module);
     size_t callbacksFound = cbDumper.FindCallbacks();
@@ -99,19 +110,24 @@ void DumpCallbacks(ClientModule* t_module, const std::string& t_outPath)
             out << "    {" << std::endl;
             out << "        \"id\": "          << it->second.m_callbackID    << ","   << std::endl;
             out << "        \"name\": \""      << it->second.m_name          << "\"," << std::endl;
-            out << "        \"size\": "        <<  it->second.m_callbackSize << ","   << std::endl;
-            out << "        \"posted_at\": [";
-            out << std::hex;
-            for(auto pit = it->second.m_postedAt.cbegin(); pit != it->second.m_postedAt.cend(); ++pit)
+            out << "        \"size\": "        <<  it->second.m_callbackSize;
+            if(t_includeOffsets)
             {
-                out << "\"0x" << *pit << "\"";
-                if(std::next(pit) != it->second.m_postedAt.cend())
+                out << ","   << std::endl;
+                out << "        \"posted_at\": [";
+                out << std::hex;
+                for(auto pit = it->second.m_postedAt.cbegin(); pit != it->second.m_postedAt.cend(); ++pit)
                 {
-                    out << ",";
+                    out << "\"0x" << *pit << "\"";
+                    if(std::next(pit) != it->second.m_postedAt.cend())
+                    {
+                        out << ",";
+                    }
                 }
+                out << std::dec;
+                out << "]";
             }
-            out << std::dec;
-            out << "]" << std::endl;
+            out << std::endl;
             out << "    }";
 
             if(std::next(it) != callbacks->cend())
@@ -163,14 +179,34 @@ void DumpLegacyEMsgList(ClientModule* t_module, const std::string& t_outPath)
 
 int main(int argc, char* argv[])
 {
-    if(argc < 2)
+    argparse::ArgumentParser program("steamworks_dumper");
+    program.add_argument("--dump-offsets")
+            .default_value(false)
+            .implicit_value(true)
+            .help("include relative offsets/sddresses in dumps");
+
+    program.add_argument("in")
+            .help(".so in")
+            .required();
+
+    program.add_argument("out")
+            .help("output path")
+            .required();
+
+    try
     {
-        std::cout << "Usage " << argv[0] << " <in_so> <out_path>" << std::endl;
-        return -1;
+        program.parse_args(argc, argv);
+    }
+    catch (const std::runtime_error& err)
+    {
+        std::cerr << err.what() << std::endl;
+        std::cerr << program;
+        std::exit(1);
     }
 
-    const char* modulePath = argv[1];
-    std::string outPath (argv[2]);
+    std::string modulePath = program.get("in");
+    std::string outPath = program.get("out");
+    bool includeOffsets = program.get<bool>("--dump-offsets");
 
     std::cout << "Loading module image... ";
     ClientModule module(modulePath);
@@ -189,8 +225,8 @@ int main(int argc, char* argv[])
     }
     std::cout << "Done" << std::endl;
 
-    DumpCallbacks(&module, outPath);
-    DumpInterfaces(&module, outPath);
+    DumpCallbacks(&module, outPath, includeOffsets);
+    DumpInterfaces(&module, outPath, includeOffsets);
     DumpEnums(&module, outPath);
     DumpLegacyEMsgList(&module, outPath);
 
