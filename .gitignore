@@ -12,6 +12,9 @@ compile_commands.json
 CTestTestfile.cmake
 _deps
 
+# kdevelop stuff
+*.kdev4
+
 # ignore builds 
 build/
 build_debug/
