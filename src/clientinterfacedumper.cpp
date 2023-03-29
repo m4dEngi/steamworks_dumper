@@ -135,7 +135,7 @@ void ClientInterfaceDumper::ParseVTable(std::string t_typeName, size_t t_vtoffse
 
         if(!GetSerializedFuncInfo(t_typeName, vtFuncs[vmIdx], &fArgc, &fName) || fName.empty())
         {
-            fName = "Unknown_" + std::to_string(vtFuncs[vmIdx]);
+            fName = "Unknown_" + std::to_string(vmIdx);
         }
 
         func.m_addr = vtFuncs[vmIdx];
