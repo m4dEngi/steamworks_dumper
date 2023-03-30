@@ -21,17 +21,25 @@ void DumpEnums(ClientModule* t_module, const std::string& t_outPath)
         auto enums = dumper.GetEnums();
         for(auto it = enums->cbegin(); it != enums->cend(); ++it)
         {
-            std::snprintf(enumOutPath, outPathSize, "%s/%s.h", t_outPath.c_str(), it->first.c_str());
+            std::snprintf(enumOutPath, outPathSize, "%s/%s.json", t_outPath.c_str(), it->first.c_str());
             std::ofstream out(enumOutPath, std::ios_base::out);
 
-            out << "typedef enum " << it->first << std::endl << "{" << std::endl;
+            out << "{" << std::endl;
+            out << "    \"name\": \"" << it->first << "\"," << std::endl;
+            out << "    \"items\":" << std::endl;
+            out << "        [" << std::endl;
 
             for(auto valIt = it->second.cbegin(); valIt != it->second.cend(); ++valIt)
             {
-                out << "    k_" << it->first << valIt->second << " = " << valIt->first;
-                out << "," << std::endl;
+                out << "            [\"" << valIt->second << "\", \"" << valIt->first << "\"]";
+                if(std::next(valIt) != it->second.cend())
+                {
+                    out << ",";
+                }
+                out << std::endl;
             }
-            out << "} " << it->first << ";" << std::endl;
+            out << "        ]" << std::endl;
+            out << "}" << std::endl;
         }
 
         delete [] enumOutPath;
