@@ -1,5 +1,6 @@
 #include "clientinterfacedumper.h"
 #include "randomstack.h"
+#include <string>
 #include <iostream>
 #include <set>
 
@@ -8,7 +9,8 @@ ClientInterfaceDumper::ClientInterfaceDumper(ClientModule *t_module):
     m_relRoShdr(nullptr),
     m_txtShdr(nullptr),
     m_roShdr(nullptr),
-    m_sendSerializedFnOffset(-1)
+    m_sendSerializedFnOffset(-1),
+    m_clientApiInitGlobal(-1)
 {
     m_relRoShdr = t_module->GetSectionHeader(".data.rel.ro");
     m_relRoLocalShdr = t_module->GetSectionHeader(".data.rel.ro.local");
@@ -20,9 +22,18 @@ ClientInterfaceDumper::ClientInterfaceDumper(ClientModule *t_module):
         "xxxxxx????xx????xxx????xxxxx????xxxxx????xx????"
     );
 
+    m_clientApiInitGlobal = t_module->FindSignature("\x53\xE8\x00\x00\x00\x00\x81\xC3\x00\x00\x00\x00\x83\xEC\x0C\x8B\x83\x00\x00\x00\x00\x8B\x10\xFF\xB3\x00\x00\x00\x00\xFF\xB3\x00\x00\x00\x00\x50\xFF\x52\x20",
+        "xx????xx????xxxxx????xxxx????xx????xxxx"
+    );
+
     if(m_sendSerializedFnOffset == -1)
     {
         std::cout << "Could not find SendSerializedFunction offset!" << std::endl;
+    }
+
+    if(m_clientApiInitGlobal == -1)
+    {
+        std::cout << "Could not find ClientAPI_Init offset..." << std::endl;
     }
 }
 
@@ -120,6 +131,125 @@ bool ClientInterfaceDumper::GetSerializedFuncInfo(std::string t_iname, size_t t_
     return true;
 }
 
+size_t ClientInterfaceDumper::GetIClientEngine()
+{
+    // ClientAPI_Init is relatively simple function
+    // that initializes client global context and throwing assert
+    // on any NULL returned by interface getter in IClientEngine
+    // Like this one:
+    // "ClientAPI_Init(GlobalInstance): GetIClientSystemPerfManager returned NULL."
+    //
+    // we'll use these assert strings to partially recover
+    // IClientEngine interface
+
+    size_t funcSize = m_module->GetFunctionSize(m_clientApiInitGlobal);
+    if(funcSize == -1)
+    {
+        return false;
+    }
+
+    std::string iname("IClientEngineMap");
+
+    csh csHandle;
+    cs_insn *ins;
+    size_t count;
+
+    if(cs_open(CS_ARCH_X86, CS_MODE_32, &csHandle) == CS_ERR_OK)
+    {
+        cs_option(csHandle, CS_OPT_SKIPDATA, CS_OPT_ON);
+        cs_option(csHandle, CS_OPT_DETAIL, CS_OPT_ON);
+
+        count = cs_disasm(csHandle, (uint8_t*)(m_image + m_clientApiInitGlobal), funcSize, m_clientApiInitGlobal, 0, &ins);
+        if(count > 0)
+        {
+            // Parser's a mess, but i really want to get it all in one pass
+
+            int32_t lastCallOff = -1;
+            int argc = 0;
+
+            std::map<size_t, int32_t> stringHints;
+            std::map<int32_t, InterfaceFunction> funcs;
+
+            for (size_t i = 0; i < count; i++)
+            {
+                cs_x86* x86 = &ins[i].detail->x86;
+                cs_insn* insSingle = &ins[i];
+
+                switch(ins[i].id)
+                {
+                case X86_INS_JE:
+                {
+                    if(lastCallOff != -1)
+                    {
+                        // probably jump to assert on returned NULL
+                        // if that's the case it'll be jump to LEA
+                        // with assert string offset
+                        stringHints[x86->operands[0].imm] = lastCallOff;
+                        lastCallOff = -1;
+                    }
+                    break;
+                }
+                case X86_INS_PUSH:
+                {
+                    ++argc;
+                    break;
+                }
+                case X86_INS_LEA:
+                {
+                    size_t constOffset = m_constBase + x86->disp;
+                    if(m_module->IsDataOffset(constOffset))
+                    {
+                        if(stringHints.find(ins[i].address) != stringHints.cend())
+                        {
+                            // Skip "ClientAPI_Init(GlobalInstance): "
+                            std::string ass = (const char*)(m_image + constOffset + 32);
+                            funcs[stringHints[ins[i].address]].m_name = ass.substr(0, ass.find_first_of(' '));
+                        }
+                    }
+                    break;
+                }
+                case X86_INS_CALL:
+                {
+                    if(    x86->op_count == 1
+                        && x86->operands[0].type == X86_OP_MEM
+                        )
+                    {
+                        funcs[x86->operands[0].mem.disp].m_addr = x86->operands[0].mem.disp;
+                        funcs[x86->operands[0].mem.disp].m_argc = argc;
+
+                        lastCallOff = x86->operands[0].mem.disp;
+                    }
+                    argc = 0;
+                    break;
+                }
+                }
+            }
+
+            if(funcs.size() > 0)
+            {
+                m_interfaces[iname].m_foundAt = m_clientApiInitGlobal;
+
+                for(int32_t i = 0; i < (--funcs.end())->first + sizeof(int32_t); i += sizeof(int32_t))
+                {
+                    if(    funcs.find(i) != funcs.cend()
+                        && !funcs[i].m_name.empty()
+                      )
+                    {
+                        m_interfaces[iname].m_functions.push_back(funcs[i]);
+                    }
+                    else
+                    {
+                        InterfaceFunction funk = { "Unknown_" + std::to_string( i / sizeof(int32_t)), 0, 0 };
+                        m_interfaces[iname].m_functions.push_back(funk);
+                    }
+                }
+            }
+        }
+    }
+
+    return -1;
+}
+
 void ClientInterfaceDumper::ParseVTable(std::string t_typeName, size_t t_vtoffset)
 {
     int32_t* vtFuncs = (int32_t*)(m_image + t_vtoffset);
@@ -179,6 +309,11 @@ size_t ClientInterfaceDumper::FindClientInterfaces()
                 }
             }
         }
+    }
+
+    if(m_clientApiInitGlobal != -1)
+    {
+        GetIClientEngine();
     }
 
     return m_interfaces.size();

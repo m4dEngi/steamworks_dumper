@@ -1,6 +1,6 @@
 #ifndef CLIENTMODULE_H
 #define CLIENTMODULE_H
-
+#include <cstdint>
 #include <capstone/capstone.h>
 #include <map>
 #include <vector>
