@@ -78,13 +78,15 @@ bool EnumDumper::GetEnumOffsetsByRef(size_t t_ref, size_t* t_name, size_t* t_val
                       )
                     {
                        size_t memOffset = x86->disp + m_constBase;
-                       if(m_relData->sh_addr <= memOffset && memOffset < m_relData->sh_addr + m_relData->sh_size)
-                       {
-                           suspectEnumOffsets.insert(memOffset);
-                       }
-                       else
-                       {
-                           possibleAssertArgs.push_back(memOffset);
+                       if (m_relData) {
+                            if(m_relData->sh_addr <= memOffset && memOffset < m_relData->sh_addr + m_relData->sh_size)
+                            {
+                                suspectEnumOffsets.insert(memOffset);
+                            }
+                            else
+                            {
+                                possibleAssertArgs.push_back(memOffset);
+                            }
                        }
 
 

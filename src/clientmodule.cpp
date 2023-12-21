@@ -226,7 +226,7 @@ bool ClientModule::Parse()
     uint64_t address = codeSect->sh_addr;
     cs_insn* insn = cs_malloc(csHandle);
 
-    const Elf32_Shdr* gotPlt = m_image.GetSectionHeader(".got.plt");
+    const Elf32_Shdr* gotPlt = m_image.GetSectionHeader(".got");
 
     while(cs_disasm_iter(csHandle, &code, &codeSize, &address, insn))
     {
@@ -242,7 +242,7 @@ bool ClientModule::Parse()
                 //
                 // lea eax, [ebx - 0xFFFFFFFF]
                 //
-                // it's probably calculating relative offset to constant using .got.plt offset
+                // it's probably calculating relative offset to constant using .got offset
                 // previously stored in a reg as base
                 // so we'll store that offset to use later for const size hint
                 //

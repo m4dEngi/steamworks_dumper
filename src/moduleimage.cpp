@@ -235,7 +235,7 @@ bool ModuleImage::ProcessDynSymtab()
 
 void ModuleImage::UpdatePltSymbols()
 {
-    const Elf32_Shdr* gotPltSect = GetSectionHeader(".got.plt");
+    const Elf32_Shdr* gotPltSect = GetSectionHeader(".got");
     const Elf32_Shdr* pltSect = GetSectionHeader(".plt");
     const char* gotPlt = m_image + gotPltSect->sh_addr;
 
