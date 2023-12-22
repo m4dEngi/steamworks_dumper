@@ -3,7 +3,7 @@
 DumperBase::DumperBase(ClientModule *t_module):
     m_module(t_module)
 {
-    const Elf32_Shdr* pltGot = t_module->GetSectionHeader(".got.plt");
+    const Elf32_Shdr* pltGot = t_module->GetSectionHeader(".got");
     if(pltGot)
     {
         m_constBase = pltGot->sh_addr;
